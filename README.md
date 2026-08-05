@@ -13,6 +13,7 @@ The project target is Ubuntu 24.04 with ROS 2 Jazzy. The initial foundation is a
 - `pickcell_interfaces`: public messages, services, actions, and normalized errors.
 - `pickcell_description`: canonical frames and the current placeholder cell model.
 - `pickcell_config`: placeholder profiles, manifests, schemas, and configuration resolution.
+- `pickcell_bringup`: centralized mode/profile resolution and top-level launch assembly.
 - `pickcell_test_support`: deterministic ROS fixtures and reusable contract assertions.
 
 The configuration files intentionally remain placeholders during the contract-foundation milestone. They will be populated and schema-validated in a later pass.

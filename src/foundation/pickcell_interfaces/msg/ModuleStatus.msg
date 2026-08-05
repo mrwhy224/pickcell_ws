@@ -8,6 +8,12 @@ uint8 ERROR=5
 std_msgs/Header header
 string module_name
 uint8 state
+pickcell_interfaces/RuntimeMode mode
+string deployment
 string implementation
+string backend
+string algorithm
 string version
+bool use_sim_time
+string configuration_hash
 diagnostic_msgs/KeyValue[] details

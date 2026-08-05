@@ -21,6 +21,7 @@ Outcome: stable public API, configuration semantics, and frame conventions.
 - [x] Define public actions: `DetectObjects`, `PlanGrasps`, `PlanMotion`, `ExecuteTrajectory`, and `ExecuteTask`.
 - [x] Define supporting services: `InjectDetections`, `GetCapabilities`, `ValidateTrajectory`, `ClearScene`, and `GetSystemProfile`.
 - [x] Add machine-readable shared error codes and document their semantics.
+- [x] Add a common runtime status contract declaring `mock`, `sim`, or `real` independently from backend and algorithm selections.
 - [x] Generate and test ROS type support with `rosidl_default_generators`.
 
 ### `pickcell_config`
@@ -56,6 +57,16 @@ Outcome: stable public API, configuration semantics, and frame conventions.
 - [x] Add initial synthetic pose, detection, and point-cloud generators plus frame/error contract assertions.
 - [ ] Add ROS launch helpers and asynchronous action-client fixtures when the first server package is introduced.
 - [ ] Add reusable contract tests for actions, cancellation, error codes, frames, namespaces, QoS, lifecycle, and clean shutdown.
+
+### `pickcell_bringup`
+
+- [x] Create the top-level `ament_python` bringup package.
+- [x] Resolve mode and module profiles centrally through one `ConfigResolver`.
+- [x] Pass effective parameters, `system_mode`, `use_sim_time`, and the configuration hash to runtime nodes.
+- [x] Provide a reusable node-construction helper for future subsystem launch files.
+- [x] Add `system.launch.py` and a headless `foundation.launch.py`.
+- [ ] Add each runtime server to system assembly as its package is implemented.
+- [ ] Add lifecycle dependency ordering and capability verification after runtime servers exist.
 
 ### Foundation acceptance gate
 

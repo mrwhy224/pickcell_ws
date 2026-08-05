@@ -4,8 +4,28 @@ import struct
 from collections.abc import Sequence
 
 from geometry_msgs.msg import PoseStamped
+from pickcell_interfaces.msg import ModuleStatus, RuntimeMode
 from sensor_msgs.msg import PointCloud2, PointField
 from vision_msgs.msg import Detection3D, ObjectHypothesisWithPose
+
+
+def make_module_status(
+    module_name: str = "test_server",
+    mode: int = RuntimeMode.MOCK,
+) -> ModuleStatus:
+    """Create a valid status declaration for a synthetic runtime module."""
+    message = ModuleStatus()
+    message.module_name = module_name
+    message.state = ModuleStatus.ACTIVE
+    message.mode.value = mode
+    message.deployment = "test"
+    message.implementation = "pickcell_test_support/SyntheticServer"
+    message.backend = "generated_data"
+    message.algorithm = "deterministic_fixture"
+    message.version = "0.1.0"
+    message.use_sim_time = mode != RuntimeMode.REAL
+    message.configuration_hash = "test-configuration"
+    return message
 
 
 def make_pose_stamped(

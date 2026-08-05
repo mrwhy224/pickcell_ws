@@ -1,5 +1,5 @@
 std_msgs/Header header
-string mode
+pickcell_interfaces/RuntimeMode mode
 string deployment
 string configuration_hash
 bool ready

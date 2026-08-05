@@ -1,7 +1,7 @@
 ---
 pickcell_interfaces/ErrorCode error
 string system_namespace
-string mode
+pickcell_interfaces/RuntimeMode mode
 string deployment
 bool use_sim_time
 string configuration_hash

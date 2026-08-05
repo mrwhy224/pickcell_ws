@@ -7,6 +7,7 @@ def test_recommended_interface_types_are_importable() -> None:
     """All roadmap contract types must be generated and importable."""
     message_names = (
         "ObjectReference",
+        "RuntimeMode",
         "GraspCandidate",
         "GraspCandidateArray",
         "MotionPlanMetadata",
@@ -25,6 +26,7 @@ def test_recommended_interface_types_are_importable() -> None:
     service_names = (
         "InjectDetections",
         "GetCapabilities",
+        "GetModuleStatus",
         "ValidateTrajectory",
         "ClearScene",
         "GetSystemProfile",

@@ -20,6 +20,7 @@ set(message_files
   "msg/ModuleStatus.msg"
   "msg/MotionPlanMetadata.msg"
   "msg/ObjectReference.msg"
+  "msg/RuntimeMode.msg"
   "msg/SafetyState.msg"
   "msg/SystemStatus.msg"
   "msg/TaskState.msg"
@@ -28,6 +29,7 @@ set(message_files
 set(service_files
   "srv/ClearScene.srv"
   "srv/GetCapabilities.srv"
+  "srv/GetModuleStatus.srv"
   "srv/GetSystemProfile.srv"
   "srv/InjectDetections.srv"
   "srv/ValidateTrajectory.srv"

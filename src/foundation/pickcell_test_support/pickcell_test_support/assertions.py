@@ -4,7 +4,7 @@ import math
 from collections.abc import Iterable
 
 from geometry_msgs.msg import PoseStamped
-from pickcell_interfaces.msg import ErrorCode
+from pickcell_interfaces.msg import ErrorCode, ModuleStatus, RuntimeMode
 from std_msgs.msg import Header
 
 
@@ -23,6 +23,12 @@ _KNOWN_ERROR_CODES = {
     ErrorCode.INTERNAL_ERROR,
     ErrorCode.UNSUPPORTED,
     ErrorCode.NOT_READY,
+}
+
+_KNOWN_RUNTIME_MODES = {
+    RuntimeMode.MOCK,
+    RuntimeMode.SIM,
+    RuntimeMode.REAL,
 }
 
 
@@ -73,3 +79,19 @@ def assert_error_code(error: ErrorCode, expected: int | None = None) -> None:
         assert error.code == expected
     if error.code != ErrorCode.SUCCESS:
         assert error.message, "failure results must include a diagnostic message"
+
+
+def assert_runtime_mode(mode: RuntimeMode) -> None:
+    """Assert that a running module declares an explicit environment mode."""
+    assert mode.value in _KNOWN_RUNTIME_MODES, (
+        "runtime mode must be MOCK, SIM, or REAL"
+    )
+
+
+def assert_module_status(status: ModuleStatus) -> None:
+    """Assert the common status fields required from every runtime module."""
+    assert status.module_name, "module_name must not be empty"
+    assert status.implementation, "implementation must not be empty"
+    assert status.version, "version must not be empty"
+    assert status.configuration_hash, "configuration_hash must not be empty"
+    assert_runtime_mode(status.mode)
