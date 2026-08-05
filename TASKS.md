@@ -76,6 +76,7 @@ Outcome: stable public API, configuration semantics, and frame conventions.
 
 ## Phase 2 — Mock vertical slice
 
+- [x] Add deterministic point-cloud, final-point, and target-point mock providers for path-planning development.
 - [ ] Create contract-compatible mock action servers and sensor publishers.
 - [ ] Create task, grasp, and motion servers behind the public interfaces.
 - [ ] Create a mock trajectory executor with cancellation and normalized results.
