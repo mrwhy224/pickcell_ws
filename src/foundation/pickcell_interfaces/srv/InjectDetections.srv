@@ -1,0 +1,6 @@
+vision_msgs/Detection3DArray detections
+bool replace_existing
+---
+pickcell_interfaces/ErrorCode error
+string snapshot_id
+string scene_version

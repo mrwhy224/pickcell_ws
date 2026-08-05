@@ -1,0 +1,14 @@
+# Goal
+pickcell_interfaces/ObjectReference object
+string gripper_id
+string[] constraints
+uint32 maximum_count
+---
+# Result
+pickcell_interfaces/ErrorCode error
+pickcell_interfaces/GraspCandidateArray candidates
+---
+# Feedback
+string stage
+uint32 candidates_evaluated
+float32 current_best_score

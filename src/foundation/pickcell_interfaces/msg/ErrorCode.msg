@@ -1,0 +1,18 @@
+# Normalized result status used at every PickCell subsystem boundary.
+uint16 SUCCESS=0
+uint16 INVALID_REQUEST=1
+uint16 NO_INPUT_DATA=2
+uint16 NO_OBJECTS_FOUND=3
+uint16 NO_GRASP_FOUND=4
+uint16 PLANNING_FAILED=5
+uint16 SCENE_CHANGED=6
+uint16 SAFETY_REJECTED=7
+uint16 CONTROLLER_REJECTED=8
+uint16 CANCELED=9
+uint16 TIMEOUT=10
+uint16 INTERNAL_ERROR=11
+uint16 UNSUPPORTED=12
+uint16 NOT_READY=13
+
+uint16 code
+string message

@@ -1,0 +1,14 @@
+# Goal
+moveit_msgs/RobotTrajectory trajectory
+string expected_scene_version
+string execution_policy
+---
+# Result
+pickcell_interfaces/ErrorCode error
+string final_controller_state
+builtin_interfaces/Duration execution_time
+---
+# Feedback
+float32 progress
+float64 maximum_tracking_error
+string controller_state

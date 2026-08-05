@@ -1,0 +1,14 @@
+# Goal
+string task_type
+pickcell_interfaces/ObjectReference source
+geometry_msgs/PoseStamped target_pose
+string policy
+---
+# Result
+pickcell_interfaces/ErrorCode error
+unique_identifier_msgs/UUID task_id
+string selected_object_id
+unique_identifier_msgs/UUID selected_grasp_id
+---
+# Feedback
+pickcell_interfaces/TaskState state

@@ -1,0 +1,6 @@
+bool clear_world_objects
+bool clear_attached_objects
+string[] preserve_object_ids
+---
+pickcell_interfaces/ErrorCode error
+string scene_version

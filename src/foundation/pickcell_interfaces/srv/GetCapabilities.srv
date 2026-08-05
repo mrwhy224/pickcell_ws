@@ -1,0 +1,8 @@
+---
+pickcell_interfaces/ErrorCode error
+string server_name
+string server_version
+string[] modes
+string[] algorithms
+string[] representations
+string[] task_types

@@ -1,0 +1,16 @@
+# Goal
+pickcell_interfaces/GraspCandidate candidate
+string planning_group
+string[] constraints
+string expected_scene_version
+builtin_interfaces/Duration timeout
+---
+# Result
+pickcell_interfaces/ErrorCode error
+moveit_msgs/RobotTrajectory trajectory
+pickcell_interfaces/MotionPlanMetadata metadata
+---
+# Feedback
+string stage
+uint32 planner_attempt
+builtin_interfaces/Duration elapsed_time

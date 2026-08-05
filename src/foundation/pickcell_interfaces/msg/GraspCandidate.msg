@@ -1,0 +1,12 @@
+unique_identifier_msgs/UUID candidate_id
+string object_id
+string strategy_id
+geometry_msgs/PoseStamped pregrasp_pose
+geometry_msgs/PoseStamped grasp_pose
+geometry_msgs/PoseStamped retreat_pose
+trajectory_msgs/JointTrajectory pregrasp_posture
+trajectory_msgs/JointTrajectory grasp_posture
+float32 score
+float32 estimated_width
+float32 required_clearance
+string[] tags

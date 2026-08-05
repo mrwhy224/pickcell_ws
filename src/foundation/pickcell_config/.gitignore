@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# ROS build output when accidentally created inside package
+build/
+install/
+log/
+
+# Local configuration overrides
+config/**/*.yaml
+calibration/**/*.yaml
+
+# Keep tracked default templates
+!config/**/*.yaml.dist
+!calibration/**/*.yaml.dist

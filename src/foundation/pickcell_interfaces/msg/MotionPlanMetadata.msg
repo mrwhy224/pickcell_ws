@@ -1,0 +1,7 @@
+string planner_id
+string planning_pipeline
+string scene_version
+uint32 attempts
+builtin_interfaces/Duration planning_time
+float64 path_length
+float64 minimum_clearance

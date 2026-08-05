@@ -1,0 +1,16 @@
+# Goal
+string[] class_filters
+sensor_msgs/RegionOfInterest roi
+string requested_representation
+builtin_interfaces/Duration timeout
+---
+# Result
+pickcell_interfaces/ErrorCode error
+vision_msgs/Detection2DArray detections_2d
+vision_msgs/Detection3DArray detections_3d
+string snapshot_id
+---
+# Feedback
+string stage
+float32 progress
+uint32 objects_detected

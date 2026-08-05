@@ -1,0 +1,29 @@
+# ROS 2 / colcon output
+build/
+install/
+log/
+
+# Python caches and test output
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# CMake and editor artifacts
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+.idea/
+.vscode/
+*.swp
+*.before_*
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# PickCell machine-local configuration (tracked defaults use *.dist)
+src/foundation/pickcell_config/config/**/*.yaml
+src/foundation/pickcell_config/calibration/**/*.yaml

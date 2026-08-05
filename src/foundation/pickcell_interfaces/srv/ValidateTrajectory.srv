@@ -1,0 +1,6 @@
+moveit_msgs/RobotTrajectory trajectory
+string expected_scene_version
+---
+pickcell_interfaces/ErrorCode error
+bool authorized
+string[] violations
