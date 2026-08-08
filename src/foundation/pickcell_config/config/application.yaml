@@ -57,6 +57,8 @@ nodes:
       # One planning target: [X, Y, Z, A, B, C].
       # XYZ is in metres; KUKA-style ABC (Z-Y-X) is in degrees.
       target_pose: [0.80, 0.0, 0.20, 0.0, 0.0, 0.0]
+      # TF child frame broadcast from frame_id using target_pose.
+      target_frame_id: motion_planning_target
       point_cloud_topic: planning/point_cloud
       target_topic: planning/target_pose
 

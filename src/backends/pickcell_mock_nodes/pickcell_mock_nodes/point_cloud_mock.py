@@ -6,11 +6,12 @@ from collections.abc import Sequence
 import math
 import struct
 
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from sensor_msgs.msg import PointCloud2, PointField
+from tf2_ros import TransformBroadcaster
 
 
 def _triples(values: Sequence[float]) -> tuple[tuple[float, float, float], ...]:
@@ -53,6 +54,22 @@ def make_pose_stamped(
     return message
 
 
+def make_target_transform(
+    pose: PoseStamped, target_frame_id: str,
+) -> TransformStamped:
+    """Build the target TF from the published target pose."""
+    if not target_frame_id:
+        raise ValueError("target_frame_id must not be empty")
+    transform = TransformStamped()
+    transform.header = pose.header
+    transform.child_frame_id = target_frame_id
+    transform.transform.translation.x = pose.pose.position.x
+    transform.transform.translation.y = pose.pose.position.y
+    transform.transform.translation.z = pose.pose.position.z
+    transform.transform.rotation = pose.pose.orientation
+    return transform
+
+
 def make_point_cloud(
     frame_id: str, points: Sequence[Sequence[float]], stamp,
 ) -> PointCloud2:
@@ -89,6 +106,7 @@ class PointCloudMockNode(Node):
         self.declare_parameter("publish_rate_hz", Parameter.Type.DOUBLE)
         self.declare_parameter("cloud_points", Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("target_pose", Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("target_frame_id", Parameter.Type.STRING)
         self.declare_parameter("point_cloud_topic", Parameter.Type.STRING)
         self.declare_parameter("target_topic", Parameter.Type.STRING)
 
@@ -102,6 +120,11 @@ class PointCloudMockNode(Node):
         self._frame_id = frame_id
         self._cloud_points = cloud_points
         self._target_pose = target_pose
+        self._target_frame_id = str(
+            self.get_parameter("target_frame_id").value
+        )
+        if not self._target_frame_id:
+            raise ValueError("target_frame_id must not be empty")
         self._cloud_publisher = self.create_publisher(
             PointCloud2,
             str(self.get_parameter("point_cloud_topic").value),
@@ -112,10 +135,11 @@ class PointCloudMockNode(Node):
             str(self.get_parameter("target_topic").value),
             10,
         )
+        self._tf_broadcaster = TransformBroadcaster(self)
         self._timer = self.create_timer(1.0 / rate, self._publish_fixture)
         self.get_logger().info(
             f"Publishing target XYZABC={tuple(map(float, target_pose))} "
-            f"in frame '{frame_id}'"
+            f"as frame '{frame_id}' -> '{self._target_frame_id}'"
         )
 
     def _publish_fixture(self) -> None:
@@ -124,8 +148,12 @@ class PointCloudMockNode(Node):
         self._cloud_publisher.publish(
             make_point_cloud(self._frame_id, self._cloud_points, stamp)
         )
-        self._target_publisher.publish(
-            make_pose_stamped(self._frame_id, self._target_pose, stamp)
+        target_pose = make_pose_stamped(
+            self._frame_id, self._target_pose, stamp
+        )
+        self._target_publisher.publish(target_pose)
+        self._tf_broadcaster.sendTransform(
+            make_target_transform(target_pose, self._target_frame_id)
         )
 
 
