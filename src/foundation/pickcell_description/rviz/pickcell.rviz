@@ -5,7 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Robot - KUKA KR 16 R2010-2
-        - /TARGET - red sphere
+        - /TARGET - red pose arrow
         - /Mock point cloud - cyan
       Splitter Ratio: 0.55
     Tree Height: 720
@@ -59,34 +59,22 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Alpha: 1
-      Class: rviz_default_plugins/PointStamped
+      Class: rviz_default_plugins/Pose
       Color: 255; 35; 35
       Enabled: true
-      History Length: 1
-      Name: TARGET - red sphere
+      Head Length: 0.12
+      Head Radius: 0.08
+      Name: TARGET - red pose arrow
       Queue Size: 10
-      Radius: 0.12
+      Shaft Length: 0.25
+      Shaft Radius: 0.04
+      Shape: Arrow
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /pickcell/planning/target_position
-      Value: true
-    - Alpha: 1
-      Class: rviz_default_plugins/PointStamped
-      Color: 40; 255; 80
-      Enabled: true
-      History Length: 1
-      Name: Final point - green sphere
-      Queue Size: 10
-      Radius: 0.07
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /pickcell/planning/final_position
+        Value: /pickcell/planning/target_pose
       Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true

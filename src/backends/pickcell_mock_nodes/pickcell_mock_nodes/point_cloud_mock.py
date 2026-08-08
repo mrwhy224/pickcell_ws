@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import struct
 from collections.abc import Sequence
+import math
+import struct
 
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PoseStamped
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
@@ -25,18 +26,36 @@ def _triples(values: Sequence[float]) -> tuple[tuple[float, float, float], ...]:
     return points
 
 
-def make_point_stamped(frame_id: str, point: Sequence[float], stamp, ) -> PointStamped:
-    """Build a frame-stamped point with a caller-provided timestamp."""
-    if len(point) != 3:
-        raise ValueError("point must contain exactly three coordinates")
-    message = PointStamped()
+def make_pose_stamped(
+    frame_id: str, pose_abc: Sequence[float], stamp,
+) -> PoseStamped:
+    """Build a pose from XYZ and KUKA-style ABC angles in degrees."""
+    if len(pose_abc) != 6:
+        raise ValueError("target_pose must contain X Y Z A B C")
+    x, y, z, a_deg, b_deg, c_deg = map(float, pose_abc)
+    yaw = math.radians(a_deg)
+    pitch = math.radians(b_deg)
+    roll = math.radians(c_deg)
+    cy, sy = math.cos(yaw / 2.0), math.sin(yaw / 2.0)
+    cp, sp = math.cos(pitch / 2.0), math.sin(pitch / 2.0)
+    cr, sr = math.cos(roll / 2.0), math.sin(roll / 2.0)
+
+    message = PoseStamped()
     message.header.frame_id = frame_id
     message.header.stamp = stamp
-    message.point.x, message.point.y, message.point.z = map(float, point)
+    message.pose.position.x = x
+    message.pose.position.y = y
+    message.pose.position.z = z
+    message.pose.orientation.x = sr * cp * cy - cr * sp * sy
+    message.pose.orientation.y = cr * sp * cy + sr * cp * sy
+    message.pose.orientation.z = cr * cp * sy - sr * sp * cy
+    message.pose.orientation.w = cr * cp * cy + sr * sp * sy
     return message
 
 
-def make_point_cloud(frame_id: str, points: Sequence[Sequence[float]], stamp, ) -> PointCloud2:
+def make_point_cloud(
+    frame_id: str, points: Sequence[Sequence[float]], stamp,
+) -> PointCloud2:
     """Build an unorganized XYZ float32 point cloud."""
     normalized = tuple(tuple(map(float, point)) for point in points)
     if not normalized or any(len(point) != 3 for point in normalized):
@@ -62,59 +81,51 @@ def make_point_cloud(frame_id: str, points: Sequence[Sequence[float]], stamp, ) 
 
 
 class PointCloudMockNode(Node):
-    """Publish a repeatable cloud, final point, and target point."""
+    """Publish a repeatable cloud and one complete planning target pose."""
 
     def __init__(self) -> None:
         super().__init__("point_cloud_mock")
         self.declare_parameter("frame_id", Parameter.Type.STRING)
         self.declare_parameter("publish_rate_hz", Parameter.Type.DOUBLE)
         self.declare_parameter("cloud_points", Parameter.Type.DOUBLE_ARRAY)
-        self.declare_parameter("final_point", Parameter.Type.DOUBLE_ARRAY)
-        self.declare_parameter("target_point", Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("target_pose", Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter("point_cloud_topic", Parameter.Type.STRING)
-        self.declare_parameter("final_point_topic", Parameter.Type.STRING)
         self.declare_parameter("target_topic", Parameter.Type.STRING)
 
         frame_id = str(self.get_parameter("frame_id").value)
         cloud_points = _triples(self.get_parameter("cloud_points").value)
-        final_point = self.get_parameter("final_point").value
-        target_point = self.get_parameter("target_point").value
+        target_pose = self.get_parameter("target_pose").value
         rate = float(self.get_parameter("publish_rate_hz").value)
         if rate <= 0.0:
             raise ValueError("publish_rate_hz must be greater than zero")
 
         self._frame_id = frame_id
         self._cloud_points = cloud_points
-        self._final_point = final_point
-        self._target_point = target_point
+        self._target_pose = target_pose
         self._cloud_publisher = self.create_publisher(
             PointCloud2,
             str(self.get_parameter("point_cloud_topic").value),
             10,
         )
-        self._final_publisher = self.create_publisher(
-            PointStamped,
-            str(self.get_parameter("final_point_topic").value),
-            10,
-        )
         self._target_publisher = self.create_publisher(
-            PointStamped,
+            PoseStamped,
             str(self.get_parameter("target_topic").value),
             10,
         )
         self._timer = self.create_timer(1.0 / rate, self._publish_fixture)
         self.get_logger().info(
-            f"Publishing target {tuple(map(float, target_point))} "
+            f"Publishing target XYZABC={tuple(map(float, target_pose))} "
             f"in frame '{frame_id}'"
         )
 
     def _publish_fixture(self) -> None:
         """Publish all related messages with one common timestamp."""
         stamp = self.get_clock().now().to_msg()
-        self._cloud_publisher.publish(make_point_cloud(self._frame_id, self._cloud_points, stamp))
-        self._final_publisher.publish(make_point_stamped(self._frame_id, self._final_point, stamp))
+        self._cloud_publisher.publish(
+            make_point_cloud(self._frame_id, self._cloud_points, stamp)
+        )
         self._target_publisher.publish(
-            make_point_stamped(self._frame_id, self._target_point, stamp)
+            make_pose_stamped(self._frame_id, self._target_pose, stamp)
         )
 
 

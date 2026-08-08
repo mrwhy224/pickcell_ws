@@ -28,8 +28,7 @@ same section, using degrees for readability.
 RViz starts automatically with the system launch. Its configured displays use:
 
 - KUKA mesh: **Robot - KUKA KR 16 R2010-2**
-- planning target: a large **red sphere**
-- final point: a smaller **green sphere**
+- planning target: a **red pose arrow** showing position and orientation
 - mock point cloud: **cyan spheres**
 
 TF axes are available as `TF frames (optional)` but disabled initially so they
@@ -42,14 +41,18 @@ Edit only this file:
 
 [`src/foundation/pickcell_config/config/application.yaml`](src/foundation/pickcell_config/config/application.yaml)
 
-The active value is the `target_point` entry under:
+The active value is the `target_pose` entry under:
 
 ```yaml
 nodes:
   point_cloud_mock:
     parameters:
-      target_point: [x, y, z]
+      target_pose: [x, y, z, a, b, c]
 ```
+
+XYZ is expressed in metres. ABC is expressed in degrees using KUKA's Z-Y-X
+convention: A rotates about Z, B about Y, and C about X. This is the only
+planning target; there is no separate `final_position` topic.
 
 The same file says that the point publisher runs in `mock` mode and the planning
 listener runs in `sim` mode.

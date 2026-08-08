@@ -1,5 +1,5 @@
 # This is the single configuration file used by system.launch.py.
-# With a symlink build, change target_point here and relaunch; no rebuild needed.
+# With a symlink build, change target_pose here and relaunch; no rebuild needed.
 system:
   namespace: pickcell
   use_sim_time: false
@@ -54,15 +54,15 @@ nodes:
         0.45,  0.05, 0.10,
         0.45,  0.10, 0.10,
       ]
-      final_point: [0.45, 0.0, 0.10]
-      target_point: [3.80, 0.0, 0.20]
+      # One planning target: [X, Y, Z, A, B, C].
+      # XYZ is in metres; KUKA-style ABC (Z-Y-X) is in degrees.
+      target_pose: [0.80, 0.0, 0.20, 0.0, 0.0, 0.0]
       point_cloud_topic: planning/point_cloud
-      final_point_topic: planning/final_position
-      target_topic: planning/target_position
+      target_topic: planning/target_pose
 
   planning_target_listener:
     mode: sim
     package: pickcell_motion_server
     executable: target_listener
     parameters:
-      target_topic: planning/target_position
+      target_topic: planning/target_pose
