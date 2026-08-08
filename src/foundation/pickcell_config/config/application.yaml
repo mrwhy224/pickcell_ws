@@ -3,6 +3,19 @@
 system:
   namespace: pickcell
   use_sim_time: false
+  robot:
+    model: kr16_r2010_2
+    mode: sim
+    # Publishes a zero joint pose until a simulator or hardware driver exists.
+    joint_state_source: default
+    joint_state_rate_hz: 10
+    xacro_arguments:
+      robot_prefix: ""
+      robot_mount_xyz: "0 0 0"
+      robot_mount_rpy: "0 0 0"
+      # Keep this at zero until the real gripper/TCP is selected.
+      tcp_xyz: "0 0 0"
+      tcp_rpy: "0 0 0"
   tf:
     enabled: true
     description_package: pickcell_description

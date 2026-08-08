@@ -6,8 +6,22 @@ The current workspace demonstrates one simple data flow:
 mock point publisher -> planning target listener
 ```
 
-The same launch also publishes the cell frame tree on `/tf_static` (and exposes
-the standard `/tf` topic for future moving joints) using `pickcell_description`.
+The same launch publishes the cell and KUKA KR 16 R2010-2 frame tree using
+`pickcell_description`. Fixed frames are published on `/tf_static`; the six
+robot joints are initialized to zero and published on `/tf` for simulation.
+
+The exact robot kinematics and meshes come from the released ROS 2
+`kuka_cybertech_support` package. Install it once with:
+
+```bash
+sudo apt update
+sudo apt install ros-humble-kuka-cybertech-support
+```
+
+The robot mode, selected model, mounting transform and future gripper TCP
+transform are in `system.robot` inside the application YAML. The TCP
+intentionally coincides with
+KUKA `tool0` until a gripper is selected; it is not a guessed 100 mm offset.
 
 ## Change the target
 

@@ -3,6 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
+import tempfile
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -30,6 +31,7 @@ def generate_launch_description() -> LaunchDescription:
     ).hexdigest()
 
     actions = [LogInfo(msg=f"PickCell config: {config_path}")]
+    robot_config = system["robot"]
     tf_config = system["tf"]
     if tf_config["enabled"]:
         description_path = (
@@ -39,10 +41,22 @@ def generate_launch_description() -> LaunchDescription:
             / tf_config["xacro_file"]
         )
         robot_description = xacro.process_file(
-            str(description_path)
+            str(description_path),
+            mappings={
+                key: str(value)
+                for key, value in robot_config.get(
+                    "xacro_arguments", {}
+                ).items()
+            },
         ).toxml()
         actions.extend([
-            LogInfo(msg=f"TF description: {description_path}"),
+            LogInfo(
+                msg=(
+                    f"TF description: {description_path}; "
+                    f"robot_model={robot_config['model']}; "
+                    f"robot_mode={robot_config['mode']}"
+                )
+            ),
             Node(
                 package="robot_state_publisher",
                 executable="robot_state_publisher",
@@ -55,6 +69,30 @@ def generate_launch_description() -> LaunchDescription:
                 output="screen",
             ),
         ])
+        if robot_config["joint_state_source"] == "default":
+            joint_description_path = (
+                Path(tempfile.gettempdir())
+                / f"pickcell_robot_description_{config_hash}.urdf"
+            )
+            joint_description_path.write_text(
+                robot_description, encoding="utf-8"
+            )
+            actions.append(
+                Node(
+                    package="joint_state_publisher",
+                    executable="joint_state_publisher",
+                    name="joint_state_publisher",
+                    namespace=namespace,
+                    arguments=[str(joint_description_path)],
+                    parameters=[{
+                        "rate": int(
+                            robot_config.get("joint_state_rate_hz", 10)
+                        ),
+                        "use_sim_time": use_sim_time,
+                    }],
+                    output="screen",
+                )
+            )
     for node_name, node_config in config["nodes"].items():
         parameters = dict(node_config["parameters"])
         parameters.update({

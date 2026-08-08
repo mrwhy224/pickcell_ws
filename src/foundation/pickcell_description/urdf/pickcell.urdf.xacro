@@ -1,106 +1,72 @@
 <?xml version="1.0"?>
 
-<robot
-  xmlns:xacro="http://www.ros.org/wiki/xacro"
-  name="pickcell">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="pickcell">
+  <!--
+    Cell description using the maintained ROS 2 model of the KUKA
+    KR 16 R2010-2. Robot dimensions, joint axes, joint limits and meshes live
+    in kuka_cybertech_support; they are intentionally not duplicated here.
+  -->
+  <xacro:include filename="$(find kuka_cybertech_support)/urdf/kr16_r2010_2_macro.xacro"/>
 
-  <!-- فریم مرجع کل سیستم -->
+  <xacro:arg name="robot_prefix" default=""/>
+  <xacro:arg name="robot_mount_xyz" default="0 0 0"/>
+  <xacro:arg name="robot_mount_rpy" default="0 0 0"/>
+  <xacro:arg name="tcp_xyz" default="0 0 0"/>
+  <xacro:arg name="tcp_rpy" default="0 0 0"/>
+  <xacro:property name="prefix" value="$(arg robot_prefix)"/>
+
   <link name="world"/>
-
-  <!-- فریم سلول صنعتی -->
   <link name="cell"/>
-
   <joint name="world_to_cell" type="fixed">
     <parent link="world"/>
     <child link="cell"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <!-- محل نصب ربات -->
+  <!-- robot_base is the configurable mounting pose inside the cell. -->
   <link name="robot_base"/>
-
   <joint name="cell_to_robot_base" type="fixed">
     <parent link="cell"/>
     <child link="robot_base"/>
+    <origin xyz="$(arg robot_mount_xyz)" rpy="$(arg robot_mount_rpy)"/>
+  </joint>
+
+  <xacro:kuka_kr16_r2010_2_robot
+    prefix="${prefix}"
+    package_name="kuka_cybertech_support"/>
+
+  <joint name="robot_base_to_kuka_base_link" type="fixed">
+    <parent link="robot_base"/>
+    <child link="${prefix}base_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <!-- پایه موقت ربات -->
-  <link name="base_link">
-    <visual>
-      <geometry>
-        <box size="0.3 0.3 0.2"/>
-      </geometry>
-    </visual>
-
-    <collision>
-      <geometry>
-        <box size="0.3 0.3 0.2"/>
-      </geometry>
-    </collision>
-
-    <inertial>
-      <mass value="10.0"/>
-      <origin xyz="0 0 0"/>
-      <inertia
-        ixx="0.1"
-        ixy="0.0"
-        ixz="0.0"
-        iyy="0.1"
-        iyz="0.0"
-        izz="0.1"/>
-    </inertial>
-  </link>
-
-  <joint name="robot_base_to_base_link" type="fixed">
-    <parent link="robot_base"/>
-    <child link="base_link"/>
-    <origin xyz="0 0 0.1" rpy="0 0 0"/>
-  </joint>
-
-  <!-- محل ابزار ربات -->
-  <link name="tool0"/>
-
-  <joint name="base_to_tool" type="fixed">
-    <parent link="base_link"/>
-    <child link="tool0"/>
-    <origin xyz="0 0 0.5" rpy="0 0 0"/>
-  </joint>
-
-  <!-- محل TCP گریپر -->
+  <!-- The TCP is configurable because it belongs to the future end effector. -->
   <link name="gripper_tcp"/>
-
-  <joint name="tool_to_gripper_tcp" type="fixed">
-    <parent link="tool0"/>
+  <joint name="tool0_to_gripper_tcp" type="fixed">
+    <parent link="${prefix}tool0"/>
     <child link="gripper_tcp"/>
-    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <origin xyz="$(arg tcp_xyz)" rpy="$(arg tcp_rpy)"/>
   </joint>
 
-  <!-- محل نصب دوربین -->
   <link name="front_camera_link"/>
-
   <joint name="cell_to_front_camera" type="fixed">
     <parent link="cell"/>
     <child link="front_camera_link"/>
     <origin xyz="1.0 0 1.8" rpy="0 0 0"/>
   </joint>
 
-  <!-- Optical frame دوربین -->
   <link name="front_camera_optical_frame"/>
-
   <joint name="camera_to_optical" type="fixed">
     <parent link="front_camera_link"/>
     <child link="front_camera_optical_frame"/>
-    <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+    <origin xyz="0 0 0" rpy="-1.57079632679 0 -1.57079632679"/>
   </joint>
 
-  <!-- فریم محل جعبه یا Bin -->
   <link name="bin_frame"/>
-
   <joint name="cell_to_bin" type="fixed">
     <parent link="cell"/>
     <child link="bin_frame"/>
     <origin xyz="0.8 0 0" rpy="0 0 0"/>
   </joint>
-
 </robot>
