@@ -1,77 +1,76 @@
-"""Resolve configuration and assemble the top-level PickCell system."""
+"""Launch every node listed in pickcell_config/config/application.yaml."""
 
+import hashlib
+import json
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
-from launch import LaunchContext, LaunchDescription
-from launch.actions import (
-    DeclareLaunchArgument,
-    IncludeLaunchDescription,
-    LogInfo,
-    OpaqueFunction,
-)
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
-
-from pickcell_bringup.config_resolution import DEFAULT_PROFILES
-from pickcell_bringup.config_resolution import resolve_system_config
-
-
-def _assemble(context: LaunchContext) -> list:
-    """Resolve launch arguments once, then construct configured actions."""
-    mode = LaunchConfiguration("mode").perform(context)
-    namespace = LaunchConfiguration("namespace").perform(context)
-    use_sim_time_text = LaunchConfiguration("use_sim_time").perform(context)
-    use_sim_time = use_sim_time_text.lower() in {"1", "true", "yes", "on"}
-    profiles = {
-        section: LaunchConfiguration(f"{section}_profile").perform(context)
-        for section in DEFAULT_PROFILES
-    }
-    resolved = resolve_system_config(
-        mode,
-        profiles=profiles,
-        use_sim_time=use_sim_time,
-    )
-
-    share = Path(get_package_share_directory("pickcell_bringup"))
-    foundation = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            str(share / "launch" / "foundation.launch.py")
-        ),
-        launch_arguments={
-            "namespace": namespace,
-            "use_sim_time": str(resolved.use_sim_time).lower(),
-        }.items(),
-    )
-    selected = ", ".join(
-        f"{name}={section.profile}"
-        for name, section in sorted(resolved.sections.items())
-    )
-    return [
-        LogInfo(msg=(
-            f"PickCell mode={resolved.mode}; profiles: {selected}; "
-            f"configuration_hash={resolved.configuration_hash}"
-        )),
-        foundation,
-    ]
+from launch import LaunchDescription
+from launch.actions import LogInfo
+from launch_ros.actions import Node
+import yaml
+import xacro
 
 
 def generate_launch_description() -> LaunchDescription:
-    """Declare system selectors and defer resolution to launch execution."""
-    arguments = [
-        DeclareLaunchArgument(
-            "mode",
-            default_value="mock",
-            choices=["mock", "sim", "real"],
-        ),
-        DeclareLaunchArgument("namespace", default_value="pickcell"),
-        DeclareLaunchArgument("use_sim_time", default_value="false"),
-    ]
-    arguments.extend(
-        DeclareLaunchArgument(
-            f"{section}_profile",
-            default_value=profile,
-        )
-        for section, profile in DEFAULT_PROFILES.items()
+    """Read the one application file and launch its configured nodes."""
+    config_path = (
+        Path(get_package_share_directory("pickcell_config"))
+        / "config"
+        / "application.yaml"
     )
-    return LaunchDescription([*arguments, OpaqueFunction(function=_assemble)])
+    with config_path.open("r", encoding="utf-8") as config_file:
+        config = yaml.safe_load(config_file)
+
+    system = config["system"]
+    namespace = system["namespace"]
+    use_sim_time = bool(system["use_sim_time"])
+    config_hash = hashlib.sha256(
+        json.dumps(config, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+    actions = [LogInfo(msg=f"PickCell config: {config_path}")]
+    tf_config = system["tf"]
+    if tf_config["enabled"]:
+        description_path = (
+            Path(get_package_share_directory(
+                tf_config["description_package"]
+            ))
+            / tf_config["xacro_file"]
+        )
+        robot_description = xacro.process_file(
+            str(description_path)
+        ).toxml()
+        actions.extend([
+            LogInfo(msg=f"TF description: {description_path}"),
+            Node(
+                package="robot_state_publisher",
+                executable="robot_state_publisher",
+                name="robot_state_publisher",
+                namespace=namespace,
+                parameters=[{
+                    "robot_description": robot_description,
+                    "use_sim_time": use_sim_time,
+                }],
+                output="screen",
+            ),
+        ])
+    for node_name, node_config in config["nodes"].items():
+        parameters = dict(node_config["parameters"])
+        parameters.update({
+            "system_mode": node_config["mode"],
+            "use_sim_time": use_sim_time,
+            "configuration_hash": config_hash,
+        })
+        actions.extend([
+            LogInfo(msg=f"{node_name}: mode={node_config['mode']}"),
+            Node(
+                package=node_config["package"],
+                executable=node_config["executable"],
+                name=node_name,
+                namespace=namespace,
+                parameters=[parameters],
+                output="screen",
+            ),
+        ])
+    return LaunchDescription(actions)

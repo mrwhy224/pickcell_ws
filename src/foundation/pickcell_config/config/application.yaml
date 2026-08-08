@@ -1,0 +1,42 @@
+# This is the single configuration file used by system.launch.py.
+# With a symlink build, change target_point here and relaunch; no rebuild needed.
+system:
+  namespace: pickcell
+  use_sim_time: false
+  tf:
+    enabled: true
+    description_package: pickcell_description
+    xacro_file: urdf/pickcell.urdf.xacro
+
+nodes:
+  point_cloud_mock:
+    mode: mock
+    package: pickcell_mock_nodes
+    executable: point_cloud_mock
+    parameters:
+      frame_id: cell
+      publish_rate_hz: 2.0
+      cloud_points: [
+        0.40, -0.10, 0.10,
+        0.40, -0.05, 0.10,
+        0.40,  0.00, 0.10,
+        0.40,  0.05, 0.10,
+        0.40,  0.10, 0.10,
+        0.45, -0.10, 0.10,
+        0.45, -0.05, 0.10,
+        0.45,  0.00, 0.10,
+        0.45,  0.05, 0.10,
+        0.45,  0.10, 0.10,
+      ]
+      final_point: [0.45, 0.0, 0.10]
+      target_point: [3.80, 0.0, 0.20]
+      point_cloud_topic: planning/point_cloud
+      final_point_topic: planning/final_position
+      target_topic: planning/target_position
+
+  planning_target_listener:
+    mode: sim
+    package: pickcell_motion_server
+    executable: target_listener
+    parameters:
+      target_topic: planning/target_position

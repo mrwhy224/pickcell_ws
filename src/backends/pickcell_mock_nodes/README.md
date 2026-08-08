@@ -1,29 +1,16 @@
-# PickCell mock point cloud
+# Mock point publisher
 
-`point_cloud_mock` publishes a deterministic fixture for developing path planning before perception or hardware exists.
+This node publishes the configured point cloud, final point, and target point.
+It has no separate configuration or launch file.
 
-Topics are relative to the node namespace:
+All values come from:
 
-- `point_cloud` — unorganized XYZ `sensor_msgs/PointCloud2`.
-- `final_point` — the current/final `geometry_msgs/PointStamped`.
-- `target_point` — the requested goal `geometry_msgs/PointStamped`.
-- `status` — active `pickcell_interfaces/ModuleStatus`.
-
-All three data messages use the same timestamp and frame. The default frame is `cell`, the final point is `(0.45, 0.0, 0.10)`, and the target is `(0.80, 0.0, 0.20)`.
-
-Run it with:
-
-```bash
-ros2 launch pickcell_mock_nodes point_cloud_mock.launch.py
+```text
+pickcell_config/config/application.yaml
 ```
 
-Override the experiment without editing code:
+Run it through the application launch:
 
 ```bash
-ros2 launch pickcell_mock_nodes point_cloud_mock.launch.py \
-  frame_id:=cell \
-  final_point:="[0.45, 0.0, 0.10]" \
-  target_point:="[0.75, 0.20, 0.25]"
+ros2 launch pickcell_bringup system.launch.py
 ```
-
-The point cloud is intentionally simple and repeatable. It is a planning fixture, not a perception result.

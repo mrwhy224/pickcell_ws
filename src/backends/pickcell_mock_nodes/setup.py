@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from setuptools import find_packages, setup
 
 
@@ -16,14 +14,6 @@ setup(
             [f"resource/{package_name}"],
         ),
         (f"share/{package_name}", ["package.xml", "README.md"]),
-        (
-            f"share/{package_name}/launch",
-            [str(path) for path in Path("launch").glob("*.launch.py")],
-        ),
-        (
-            f"share/{package_name}/config",
-            [str(path) for path in Path("config").glob("*.yaml")],
-        ),
     ],
     install_requires=["setuptools"],
     zip_safe=True,

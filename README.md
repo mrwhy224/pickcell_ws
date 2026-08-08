@@ -1,39 +1,45 @@
 # PickCell
 
-PickCell is a contract-oriented ROS 2 workspace for a modular industrial pick-and-place system. Subsystems communicate through stable ROS interfaces so perception, grasping, planning, execution, simulation, and hardware implementations can evolve independently.
+The current workspace demonstrates one simple data flow:
 
-The architectural roadmap is in [`deep-research-report.md`](deep-research-report.md), and implementation progress is tracked in [`TASKS.md`](TASKS.md).
+```text
+mock point publisher -> planning target listener
+```
 
-## Platform
+The same launch also publishes the cell frame tree on `/tf_static` (and exposes
+the standard `/tf` topic for future moving joints) using `pickcell_description`.
 
-The project target is Ubuntu 24.04 with ROS 2 Jazzy. The initial foundation is also kept source-compatible with ROS 2 Humble where the required message dependencies are installed.
+## Change the target
 
-## Foundation packages
+Edit only this file:
 
-- `pickcell_interfaces`: public messages, services, actions, and normalized errors.
-- `pickcell_description`: canonical frames and the current placeholder cell model.
-- `pickcell_config`: placeholder profiles, manifests, schemas, and configuration resolution.
-- `pickcell_bringup`: centralized mode/profile resolution and top-level launch assembly.
-- `pickcell_test_support`: deterministic ROS fixtures and reusable contract assertions.
-- `pickcell_mock_nodes`: deterministic point-cloud, final-point, and target-point publishers for path-planning development.
+[`src/foundation/pickcell_config/config/application.yaml`](src/foundation/pickcell_config/config/application.yaml)
 
-The configuration files intentionally remain placeholders during the contract-foundation milestone. They will be populated and schema-validated in a later pass.
+The active value is the `target_point` entry under:
 
-## Build and test
+```yaml
+nodes:
+  point_cloud_mock:
+    parameters:
+      target_point: [x, y, z]
+```
 
-Install dependencies with `rosdep`, then build with `colcon`:
+The same file says that the point publisher runs in `mock` mode and the planning
+listener runs in `sim` mode.
+
+## Build and run
 
 ```bash
-source /opt/ros/jazzy/setup.bash
-rosdep install --from-paths src --ignore-src --rosdistro jazzy -y
-colcon build --symlink-install
+source /opt/ros/humble/setup.bash
+colcon build --symlink-install --packages-up-to pickcell_bringup
 source install/setup.bash
-colcon test
-colcon test-result --verbose
+ros2 launch pickcell_bringup system.launch.py
 ```
 
-For a focused foundation build:
+The publisher and listener will both print the value currently stored in that
+entry. There are no coordinate defaults in their source code or launch files.
+After the initial symlink build, configuration edits only require restarting the
+launch; they do not require another build.
 
-```bash
-colcon build --symlink-install --packages-up-to pickcell_test_support
-```
+[`deep-research-report.md`](deep-research-report.md) is a future architecture
+reference; it does not describe files that must exist today.

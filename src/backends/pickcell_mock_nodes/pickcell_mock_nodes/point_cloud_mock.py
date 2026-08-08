@@ -6,25 +6,10 @@ import struct
 from collections.abc import Sequence
 
 from geometry_msgs.msg import PointStamped
-from pickcell_interfaces.msg import ErrorCode, ModuleStatus, RuntimeMode
 import rclpy
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from sensor_msgs.msg import PointCloud2, PointField
-from pickcell_interfaces.srv import GetModuleStatus
-
-
-DEFAULT_POINTS = (
-    (0.40, -0.10, 0.10),
-    (0.40, -0.05, 0.10),
-    (0.40, 0.00, 0.10),
-    (0.40, 0.05, 0.10),
-    (0.40, 0.10, 0.10),
-    (0.45, -0.10, 0.10),
-    (0.45, -0.05, 0.10),
-    (0.45, 0.00, 0.10),
-    (0.45, 0.05, 0.10),
-    (0.45, 0.10, 0.10),
-)
 
 
 def _triples(values: Sequence[float]) -> tuple[tuple[float, float, float], ...]:
@@ -77,16 +62,18 @@ def make_point_cloud(frame_id: str, points: Sequence[Sequence[float]], stamp, ) 
 
 
 class PointCloudMockNode(Node):
-    """Publish a repeatable cloud, final point, target point, and status."""
+    """Publish a repeatable cloud, final point, and target point."""
 
     def __init__(self) -> None:
         super().__init__("point_cloud_mock")
-        self.declare_parameter("frame_id", "cell")
-        self.declare_parameter("publish_rate_hz", 2.0)
-        self.declare_parameter("cloud_points", [coordinate for point in DEFAULT_POINTS for coordinate in point], )
-        self.declare_parameter("final_point", [0.45, 0.0, 0.10])
-        self.declare_parameter("target_point", [0.80, 0.0, 0.20])
-        self.declare_parameter("configuration_hash", "mock-point-cloud-v1")
+        self.declare_parameter("frame_id", Parameter.Type.STRING)
+        self.declare_parameter("publish_rate_hz", Parameter.Type.DOUBLE)
+        self.declare_parameter("cloud_points", Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("final_point", Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("target_point", Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter("point_cloud_topic", Parameter.Type.STRING)
+        self.declare_parameter("final_point_topic", Parameter.Type.STRING)
+        self.declare_parameter("target_topic", Parameter.Type.STRING)
 
         frame_id = str(self.get_parameter("frame_id").value)
         cloud_points = _triples(self.get_parameter("cloud_points").value)
@@ -100,45 +87,35 @@ class PointCloudMockNode(Node):
         self._cloud_points = cloud_points
         self._final_point = final_point
         self._target_point = target_point
-        self._cloud_publisher = self.create_publisher(PointCloud2, "point_cloud", 10 )
-        self._final_publisher = self.create_publisher(PointStamped, "final_point", 10 )
-        self._target_publisher = self.create_publisher(PointStamped, "target_point", 10 )
-        self._status_publisher = self.create_publisher(ModuleStatus, "status", 10 )
-        self._status_service = self.create_service(GetModuleStatus, "get_status", self._status_callback )
+        self._cloud_publisher = self.create_publisher(
+            PointCloud2,
+            str(self.get_parameter("point_cloud_topic").value),
+            10,
+        )
+        self._final_publisher = self.create_publisher(
+            PointStamped,
+            str(self.get_parameter("final_point_topic").value),
+            10,
+        )
+        self._target_publisher = self.create_publisher(
+            PointStamped,
+            str(self.get_parameter("target_topic").value),
+            10,
+        )
         self._timer = self.create_timer(1.0 / rate, self._publish_fixture)
-        self.get_logger().info(f"Publishing {len(cloud_points)} points in frame '{frame_id}'")
+        self.get_logger().info(
+            f"Publishing target {tuple(map(float, target_point))} "
+            f"in frame '{frame_id}'"
+        )
 
     def _publish_fixture(self) -> None:
         """Publish all related messages with one common timestamp."""
         stamp = self.get_clock().now().to_msg()
         self._cloud_publisher.publish(make_point_cloud(self._frame_id, self._cloud_points, stamp))
         self._final_publisher.publish(make_point_stamped(self._frame_id, self._final_point, stamp))
-        self._target_publisher.publish(make_point_stamped(self._frame_id, self._target_point, stamp))
-        self._status_publisher.publish(self._status_message(stamp))
-
-    def _status_message(self, stamp):
-        """Build the public runtime status declaration."""
-        status = ModuleStatus()
-        status.header.stamp = stamp
-        status.module_name = self.get_name()
-        status.state = ModuleStatus.ACTIVE
-        status.mode.value = RuntimeMode.MOCK
-        status.deployment = "development"
-        status.implementation = "pickcell_mock_nodes/PointCloudMock"
-        status.backend = "generated_data"
-        status.algorithm = "fixed_xyz_fixture"
-        status.version = "0.1.0"
-        status.use_sim_time = bool(self.get_parameter("use_sim_time").value)
-        status.configuration_hash = str(self.get_parameter("configuration_hash").value)
-        return status
-
-    def _status_callback(self, request, response):
-        """Return the same status used on the status topic."""
-        del request
-        response.error.code = ErrorCode.SUCCESS
-        response.error.message = ("point cloud, final point, and target point are active")
-        response.status = self._status_message(self.get_clock().now().to_msg())
-        return response
+        self._target_publisher.publish(
+            make_point_stamped(self._frame_id, self._target_point, stamp)
+        )
 
 
 def main(args: list[str] | None = None) -> None:
@@ -150,5 +127,9 @@ def main(args: list[str] | None = None) -> None:
     except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
         pass
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        try:
+            node.destroy_node()
+        except KeyboardInterrupt:
+            pass
+        if rclpy.ok():
+            rclpy.shutdown()

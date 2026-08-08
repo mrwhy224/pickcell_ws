@@ -24,6 +24,7 @@ compile_commands.json
 .env.*
 !.env.example
 
-# PickCell machine-local configuration (tracked defaults use *.dist)
+# PickCell machine-local configuration
 src/foundation/pickcell_config/config/**/*.yaml
 src/foundation/pickcell_config/calibration/**/*.yaml
+!src/foundation/pickcell_config/config/application.yaml
