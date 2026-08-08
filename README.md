@@ -22,6 +22,19 @@ The robot mode, selected model, mounting transform and future gripper TCP
 transform are in `system.robot` inside the application YAML. The TCP
 intentionally coincides with
 KUKA `tool0` until a gripper is selected; it is not a guessed 100 mm offset.
+The simulated starting pose is stored in `initial_joint_positions_deg` in the
+same section, using degrees for readability.
+
+RViz starts automatically with the system launch. Its configured displays use:
+
+- KUKA mesh: **Robot - KUKA KR 16 R2010-2**
+- planning target: a large **red sphere**
+- final point: a smaller **green sphere**
+- mock point cloud: **cyan spheres**
+
+TF axes are available as `TF frames (optional)` but disabled initially so they
+do not hide the robot. RViz can be disabled with `system.visualization.enabled`
+in the application YAML.
 
 ## Change the target
 

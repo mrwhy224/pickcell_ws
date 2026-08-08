@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 from pathlib import Path
 import tempfile
 
@@ -77,6 +78,16 @@ def generate_launch_description() -> LaunchDescription:
             joint_description_path.write_text(
                 robot_description, encoding="utf-8"
             )
+            joint_state_parameters = {
+                "rate": int(robot_config.get("joint_state_rate_hz", 10)),
+                "use_sim_time": use_sim_time,
+            }
+            joint_state_parameters.update({
+                f"zeros.{joint_name}": math.radians(float(position_deg))
+                for joint_name, position_deg in robot_config.get(
+                    "initial_joint_positions_deg", {}
+                ).items()
+            })
             actions.append(
                 Node(
                     package="joint_state_publisher",
@@ -84,12 +95,7 @@ def generate_launch_description() -> LaunchDescription:
                     name="joint_state_publisher",
                     namespace=namespace,
                     arguments=[str(joint_description_path)],
-                    parameters=[{
-                        "rate": int(
-                            robot_config.get("joint_state_rate_hz", 10)
-                        ),
-                        "use_sim_time": use_sim_time,
-                    }],
+                    parameters=[joint_state_parameters],
                     output="screen",
                 )
             )
@@ -108,6 +114,26 @@ def generate_launch_description() -> LaunchDescription:
                 name=node_name,
                 namespace=namespace,
                 parameters=[parameters],
+                output="screen",
+            ),
+        ])
+    visualization_config = system.get("visualization", {})
+    if visualization_config.get("enabled", False):
+        rviz_config_path = (
+            Path(get_package_share_directory(
+                visualization_config["package"]
+            ))
+            / visualization_config["rviz_config"]
+        )
+        actions.extend([
+            LogInfo(msg=f"RViz config: {rviz_config_path}"),
+            Node(
+                package="rviz2",
+                executable="rviz2",
+                name="rviz2",
+                namespace=namespace,
+                arguments=["-d", str(rviz_config_path)],
+                parameters=[{"use_sim_time": use_sim_time}],
                 output="screen",
             ),
         ])

@@ -6,9 +6,18 @@ system:
   robot:
     model: kr16_r2010_2
     mode: sim
-    # Publishes a zero joint pose until a simulator or hardware driver exists.
+    # Publishes the configured pose until a simulator or hardware driver exists.
     joint_state_source: default
     joint_state_rate_hz: 10
+    # Temporary bent pose for RViz testing. Set all six values to 0 to restore
+    # the original all-zero pose.
+    initial_joint_positions_deg:
+      joint_1: 20.0
+      joint_2: -45.0
+      joint_3: 60.0
+      joint_4: 11.0
+      joint_5: 30.0
+      joint_6: 10.0
     xacro_arguments:
       robot_prefix: ""
       robot_mount_xyz: "0 0 0"
@@ -20,6 +29,10 @@ system:
     enabled: true
     description_package: pickcell_description
     xacro_file: urdf/pickcell.urdf.xacro
+  visualization:
+    enabled: true
+    package: pickcell_description
+    rviz_config: rviz/pickcell.rviz
 
 nodes:
   point_cloud_mock:
