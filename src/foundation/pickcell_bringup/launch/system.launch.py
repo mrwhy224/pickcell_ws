@@ -34,6 +34,7 @@ def generate_launch_description() -> LaunchDescription:
     actions = [LogInfo(msg=f"PickCell config: {config_path}")]
     robot_config = system["robot"]
     tf_config = system["tf"]
+    robot_description = None
     if tf_config["enabled"]:
         description_path = (
             Path(get_package_share_directory(
@@ -99,6 +100,60 @@ def generate_launch_description() -> LaunchDescription:
                     output="screen",
                 )
             )
+    moveit_config = system.get("moveit", {})
+    if moveit_config.get("enabled", False):
+        if robot_description is None:
+            raise RuntimeError("MoveIt requires system.tf.enabled")
+        moveit_share = Path(get_package_share_directory(
+            moveit_config["config_package"]
+        ))
+        semantic_path = moveit_share / moveit_config["semantic_file"]
+        kinematics_path = moveit_share / moveit_config["kinematics_file"]
+        joint_limits_path = moveit_share / moveit_config["joint_limits_file"]
+        pipeline_name = moveit_config["planning_pipeline"]
+        pipeline_path = (
+            moveit_share / moveit_config["planning_pipeline_file"]
+        )
+        robot_description_semantic = semantic_path.read_text(
+            encoding="utf-8"
+        )
+        with kinematics_path.open("r", encoding="utf-8") as config_file:
+            kinematics = yaml.safe_load(config_file)
+        with joint_limits_path.open("r", encoding="utf-8") as config_file:
+            joint_limits = yaml.safe_load(config_file)
+        with pipeline_path.open("r", encoding="utf-8") as config_file:
+            planning_pipeline = yaml.safe_load(config_file)
+        actions.extend([
+            LogInfo(
+                msg=(
+                    f"MoveIt config: {moveit_share}; "
+                    f"pipeline={pipeline_name}"
+                )
+            ),
+            Node(
+                package="moveit_ros_move_group",
+                executable="move_group",
+                name="move_group",
+                namespace=namespace,
+                parameters=[{
+                    "robot_description": robot_description,
+                    "robot_description_semantic": robot_description_semantic,
+                    "robot_description_kinematics": kinematics,
+                    "robot_description_planning": joint_limits,
+                    "planning_pipelines": [pipeline_name],
+                    "default_planning_pipeline": pipeline_name,
+                    pipeline_name: planning_pipeline,
+                    "allow_trajectory_execution": bool(moveit_config[
+                        "allow_trajectory_execution"
+                    ]),
+                    "publish_monitored_planning_scene": bool(moveit_config[
+                        "publish_monitored_planning_scene"
+                    ]),
+                    "use_sim_time": use_sim_time,
+                }],
+                output="screen",
+            ),
+        ])
     for node_name, node_config in config["nodes"].items():
         parameters = dict(node_config["parameters"])
         parameters.update({

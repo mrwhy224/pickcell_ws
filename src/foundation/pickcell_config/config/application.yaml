@@ -7,7 +7,7 @@ system:
     model: kr16_r2010_2
     mode: sim
     # Publishes the configured pose until a simulator or hardware driver exists.
-    joint_state_source: default
+    joint_state_source: simulation_topic
     joint_state_rate_hz: 10
     # Temporary bent pose for RViz testing. Set all six values to 0 to restore
     # the original all-zero pose.
@@ -29,12 +29,30 @@ system:
     enabled: true
     description_package: pickcell_description
     xacro_file: urdf/pickcell.urdf.xacro
+  moveit:
+    enabled: true
+    config_package: pickcell_moveit_config
+    semantic_file: config/pickcell.srdf
+    kinematics_file: config/kinematics.yaml
+    joint_limits_file: config/joint_limits.yaml
+    planning_pipeline: ompl
+    planning_pipeline_file: config/ompl_planning.yaml
+    allow_trajectory_execution: false
+    publish_monitored_planning_scene: true
   visualization:
     enabled: true
     package: pickcell_description
     rviz_config: rviz/pickcell.rviz
 
 nodes:
+  joint_state_sim:
+    mode: sim
+    package: pickcell_mock_nodes
+    executable: joint_state_sim
+    parameters:
+      joint_names: [joint_1, joint_2, joint_3, joint_4, joint_5, joint_6]
+      initial_positions_deg: [20.0, -45.0, 60.0, 11.0, 30.0, 10.0]
+
   point_cloud_mock:
     mode: mock
     package: pickcell_mock_nodes
@@ -56,15 +74,24 @@ nodes:
       ]
       # One planning target: [X, Y, Z, A, B, C].
       # XYZ is in metres; KUKA-style ABC (Z-Y-X) is in degrees.
-      target_pose: [0.80, 0.0, 0.20, 0.0, 0.0, 0.0]
+      target_pose: [1.80, 0.0, 0.70, 0.0, 0.0, 0.0]
       # TF child frame broadcast from frame_id using target_pose.
       target_frame_id: motion_planning_target
       point_cloud_topic: planning/point_cloud
       target_topic: planning/target_pose
 
-  planning_target_listener:
+  motion_solver:
     mode: sim
     package: pickcell_motion_server
-    executable: target_listener
+    executable: motion_solver
     parameters:
-      target_topic: planning/target_pose
+      joint_names: [joint_1, joint_2, joint_3, joint_4, joint_5, joint_6]
+      joint_lower_limits: [-3.2288591162, -3.2288591162, -2.4085543678, -6.1086523820, -2.2689280276, -6.1086523820]
+      joint_upper_limits: [3.2288591162, 1.1344640138, 3.0543261910, 6.1086523820, 2.2689280276, 6.1086523820]
+      initial_positions_deg: [20.0, -45.0, 60.0, 11.0, 30.0, 10.0]
+      optimizer_weights: [1.0, 1.0, 1.0, 0.5, 0.5, 0.25]
+      group_name: manipulator
+      end_effector_link: gripper_tcp
+      base_frame: robot_base
+      target_frame: motion_planning_target
+      ik_timeout_seconds: 0.05
