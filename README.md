@@ -3,7 +3,7 @@
 The current workspace demonstrates one simple data flow:
 
 ```text
-mock point publisher -> planning target listener
+mock point publisher -> target pose and TF
 ```
 
 The same launch publishes the cell and KUKA KR 16 R2010-2 frame tree using
@@ -15,13 +15,16 @@ The exact robot kinematics and meshes come from the released ROS 2
 
 ```bash
 sudo apt update
-sudo apt install ros-humble-kuka-cybertech-support
+sudo apt install ros-humble-kuka-cybertech-support ros-humble-moveit
 ```
 
 The robot mode, selected model, mounting transform and future gripper TCP
 transform are in `system.robot` inside the application YAML. The TCP
 intentionally coincides with
 KUKA `tool0` until a gripper is selected; it is not a guessed 100 mm offset.
+MoveIt loads the `manipulator` group from `robot_base` through `gripper_tcp`,
+provides collision-aware inverse kinematics through `compute_ik`, and starts
+with KDL and OMPL configuration from `pickcell_moveit_config`.
 The simulated starting pose is stored in `initial_joint_positions_deg` in the
 same section, using degrees for readability.
 
@@ -54,8 +57,8 @@ XYZ is expressed in metres. ABC is expressed in degrees using KUKA's Z-Y-X
 convention: A rotates about Z, B about Y, and C about X. This is the only
 planning target; there is no separate `final_position` topic.
 
-The same file says that the point publisher runs in `mock` mode and the planning
-listener runs in `sim` mode.
+The same file says that the point publisher runs in `mock` mode. The motion
+solver is a library boundary and is not launched as a listener node.
 
 ## Build and run
 
@@ -66,8 +69,10 @@ source install/setup.bash
 ros2 launch pickcell_bringup system.launch.py
 ```
 
-The publisher and listener will both print the value currently stored in that
-entry. There are no coordinate defaults in their source code or launch files.
+The publisher prints the value currently stored in that entry. The motion
+solver reads its TF, samples collision-aware IK candidates, selects the least
+weighted joint displacement, and applies that configuration to the simulated
+joint-state display. It does not plan a path or command a controller.
 After the initial symlink build, configuration edits only require restarting the
 launch; they do not require another build.
 
