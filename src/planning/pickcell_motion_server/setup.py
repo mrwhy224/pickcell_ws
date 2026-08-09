@@ -19,12 +19,12 @@ setup(
     zip_safe=True,
     maintainer="Mahdi",
     maintainer_email="mahdi@example.com",
-    description="Configured planning-target receiver.",
+    description="Motion-planning solver abstractions.",
     license="Apache-2.0",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "target_listener = pickcell_motion_server.target_listener:main",
+            "motion_solver = pickcell_motion_server.runtime_node:main",
         ],
     },
 )
