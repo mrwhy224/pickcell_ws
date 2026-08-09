@@ -24,6 +24,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
+            "joint_state_sim = pickcell_mock_nodes.joint_state_sim:main",
             "point_cloud_mock = pickcell_mock_nodes.point_cloud_mock:main",
         ],
     },
