@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="chemical_bag">
+  <xacro:include filename="$(find pickcell_description)/urdf/chemical_bag.xacro"/>
+
+  <xacro:arg name="bag_name" default="chemical_bag"/>
+  <xacro:arg name="bag_mass" default="22.0"/>
+  <xacro:arg name="bag_scale_x" default="1.0"/>
+  <xacro:arg name="bag_scale_y" default="1.0"/>
+  <xacro:arg name="bag_scale_z" default="1.0"/>
+  <xacro:arg name="bag_com_x" default="0.0"/>
+  <xacro:arg name="bag_com_y" default="0.0"/>
+  <xacro:arg name="bag_com_z" default="0.0"/>
+
+  <xacro:chemical_bag_link
+    name="$(arg bag_name)"
+    mass="$(arg bag_mass)"
+    scale_x="$(arg bag_scale_x)"
+    scale_y="$(arg bag_scale_y)"
+    scale_z="$(arg bag_scale_z)"
+    com_x="$(arg bag_com_x)"
+    com_y="$(arg bag_com_y)"
+    com_z="$(arg bag_com_z)"/>
+</robot>

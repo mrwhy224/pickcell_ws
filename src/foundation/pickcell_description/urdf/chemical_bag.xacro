@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- Rigid approximation of a filled 20 to 25 kg industrial chemical sack. -->
+  <xacro:macro name="chemical_bag" params="parent name xyz rpy mass:=25.0 scale_x:=1.0 scale_y:=1.0 scale_z:=1.0 com_x:=0.0 com_y:=0.0 com_z:=0.0">
+    <joint name="${name}_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+      <!-- Mesh origin is at its centre; 80 mm places its bottom on z=0. -->
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+    </joint>
+
+    <xacro:chemical_bag_link
+      name="${name}"
+      mass="${mass}"
+      scale_x="${scale_x}"
+      scale_y="${scale_y}"
+      scale_z="${scale_z}"
+      com_x="${com_x}"
+      com_y="${com_y}"
+      com_z="${com_z}"/>
+  </xacro:macro>
+
+  <xacro:macro name="chemical_bag_link" params="name mass:=25.0 scale_x:=1.0 scale_y:=1.0 scale_z:=1.0 com_x:=0.0 com_y:=0.0 com_z:=0.0">
+    <link name="${name}">
+      <visual name="sack_body">
+        <geometry>
+          <mesh
+            filename="package://pickcell_description/meshes/chemical_bag.obj"
+            scale="${scale_x} ${scale_y} ${scale_z}"/>
+        </geometry>
+        <material name="chemical_sack_white">
+          <color rgba="0.82 0.84 0.78 1.0"/>
+        </material>
+      </visual>
+
+      <!-- Conservative collision geometry for stable planning and dynamics. -->
+      <collision name="bag_core">
+        <geometry>
+          <box size="${0.50 * scale_x} ${0.36 * scale_y} ${0.14 * scale_z}"/>
+        </geometry>
+      </collision>
+      <collision name="bag_left_end">
+        <origin xyz="${-0.25 * scale_x} 0 0"/>
+        <geometry>
+          <sphere radius="${0.075 * min(scale_y, scale_z)}"/>
+        </geometry>
+      </collision>
+      <collision name="bag_right_end">
+        <origin xyz="${0.25 * scale_x} 0 0"/>
+        <geometry>
+          <sphere radius="${0.075 * min(scale_y, scale_z)}"/>
+        </geometry>
+      </collision>
+
+      <!-- Box-equivalent inertia for 0.60 x 0.40 x 0.16 m and configurable mass. -->
+      <inertial>
+        <origin xyz="${com_x} ${com_y} ${com_z}"/>
+        <mass value="${mass}"/>
+        <inertia
+          ixx="${mass * ((0.40 * scale_y) ** 2 + (0.16 * scale_z) ** 2) / 12.0}"
+          ixy="0.0"
+          ixz="0.0"
+          iyy="${mass * ((0.60 * scale_x) ** 2 + (0.16 * scale_z) ** 2) / 12.0}"
+          iyz="0.0"
+          izz="${mass * ((0.60 * scale_x) ** 2 + (0.40 * scale_y) ** 2) / 12.0}"/>
+      </inertial>
+    </link>
+  </xacro:macro>
+</robot>
