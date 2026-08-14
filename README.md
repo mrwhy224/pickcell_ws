@@ -33,12 +33,19 @@ same section, using degrees for readability.
 RViz starts automatically with the system launch. Its configured displays use:
 
 - KUKA mesh: **Robot - KUKA KR 180 R2900-2** (KR 240 R2900-2 proxy geometry)
-- cell obstacle: an **open-top 0.8 m deep x 1.2 m wide x 0.8 m high wooden
-  box** with 30 mm walls, accurate hollow collision geometry, and its nearest
-  face 1 m in front of the robot base
-- box contents: **nine filled chemical bags** arranged in a repeatable,
-  randomized five-layer stack, with the top bag visible above the rim
+- load support: a **wall-free 0.8 m deep x 1.2 m wide x 0.15 m high wooden
+  pallet**, with its nearest edge 1 m in front of the robot base
+- pallet load: **nine filled chemical bags** arranged in a repeatable,
+  randomized five-layer stack
+- simulated sensor: a fixed **640 x 480 overhead depth camera** at
+  `(1.4, 0.0, 2.0) m`, looking straight down at the pallet
 - planning target: a **red pose arrow** showing position and orientation
+
+RViz keeps the robot, pallet load, and overhead point cloud in separate display
+groups. Each can be shown or hidden without changing the other two.
+
+Isaac Sim camera and ROS 2 bridge setup is documented in
+`src/backends/pickcell_isaac_sim/README.md`.
 
 TF axes are available as `TF frames (optional)` but disabled initially so they
 do not hide the robot. RViz can be disabled with `system.visualization.enabled`

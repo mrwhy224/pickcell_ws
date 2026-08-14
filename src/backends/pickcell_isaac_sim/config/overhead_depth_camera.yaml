@@ -1,0 +1,17 @@
+overhead_depth_camera:
+  prim_path: /World/PickCell/overhead_depth_camera
+  frame_id: overhead_depth_camera_optical_frame
+  position_xyz_m: [1.4, 0.0, 2.0]
+  # A USD camera looks along local -Z; identity rotation therefore looks down
+  # when the stage uses the standard Z-up world convention.
+  rotation_rpy_deg: [0.0, 0.0, 0.0]
+  resolution: [640, 480]
+  horizontal_fov_deg: 75.0
+  clipping_range_m: [0.1, 3.0]
+  publish_rate_hz: 15.0
+  ros:
+    node_namespace: pickcell
+    depth_topic: sensors/overhead_depth/depth/image_raw
+    camera_info_topic: sensors/overhead_depth/camera_info
+    point_cloud_topic: sensors/overhead_depth/points
+    publish_tf: false

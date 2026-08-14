@@ -2,7 +2,15 @@
 # With a symlink build, change target_pose here and relaunch; no rebuild needed.
 system:
   namespace: pickcell
-  use_sim_time: false
+  # The enabled Isaac process below owns /clock.
+  use_sim_time: true
+  simulator:
+    enabled: true
+    backend: isaac_sim
+    # Override per machine with PICKCELL_ISAAC_SIM_ROOT if needed.
+    install_root: /home/mahdi/isaacsim
+    headless: true
+    usd_directory: /tmp/pickcell_isaac_usd
   robot:
     # Exact KR 180 ROS meshes are unavailable; description uses the maintained
     # same-family/same-reach KR 240 R2900-2 geometry as a temporary proxy.
@@ -45,6 +53,18 @@ system:
     enabled: true
     package: pickcell_description
     rviz_config: rviz/pickcell.rviz
+  sensors:
+    overhead_depth_camera:
+      backend: isaac_sim
+      frame_id: overhead_depth_camera_optical_frame
+      pose_xyz: [1.4, 0.0, 2.0]
+      resolution: [640, 480]
+      horizontal_fov_deg: 75.0
+      clipping_range_m: [0.1, 3.0]
+      publish_rate_hz: 15.0
+      depth_topic: sensors/overhead_depth/depth/image_raw
+      camera_info_topic: sensors/overhead_depth/camera_info
+      point_cloud_topic: sensors/overhead_depth/points
 
 nodes:
   joint_state_sim:
@@ -79,7 +99,9 @@ nodes:
       target_pose: [2.00, 1.0, 2.00, 50.0, 40.0, 0.0]
       # TF child frame broadcast from frame_id using target_pose.
       target_frame_id: motion_planning_target
-      point_cloud_topic: planning/point_cloud
+      # Retained only as a deterministic test fixture. Live simulated depth is
+      # published by Isaac Sim on sensors/overhead_depth/points.
+      point_cloud_topic: debug/mock_point_cloud
       target_topic: planning/target_pose
 
   motion_solver:

@@ -3,12 +3,13 @@
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import tempfile
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import LogInfo
+from launch.actions import ExecuteProcess, LogInfo
 from launch_ros.actions import Node
 import yaml
 import xacro
@@ -42,15 +43,91 @@ def generate_launch_description() -> LaunchDescription:
             ))
             / tf_config["xacro_file"]
         )
+        xacro_mappings = {
+            key: str(value)
+            for key, value in robot_config.get(
+                "xacro_arguments", {}
+            ).items()
+        }
+        # MoveIt receives the complete collision model. RViz and the primary
+        # state publisher receive a robot-only model so the pallet is a truly
+        # independent display, not a filtered copy of the same description.
         robot_description = xacro.process_file(
             str(description_path),
-            mappings={
-                key: str(value)
-                for key, value in robot_config.get(
-                    "xacro_arguments", {}
-                ).items()
-            },
+            mappings=xacro_mappings,
         ).toxml()
+        robot_visual_description = xacro.process_file(
+            str(description_path),
+            mappings={**xacro_mappings, "include_pallet": "false"},
+        ).toxml()
+        pallet_description_path = (
+            description_path.parent / "bag_pallet_standalone.urdf.xacro"
+        )
+        pallet_description = xacro.process_file(
+            str(pallet_description_path)
+        ).toxml()
+        simulator_config = system.get("simulator", {})
+        if simulator_config.get("enabled", False):
+            if simulator_config.get("backend") != "isaac_sim":
+                raise RuntimeError("Unsupported enabled simulator backend")
+            isaac_root = Path(os.environ.get(
+                "PICKCELL_ISAAC_SIM_ROOT",
+                simulator_config["install_root"],
+            ))
+            isaac_python = isaac_root / "python.sh"
+            if not isaac_python.is_file():
+                raise RuntimeError(
+                    f"Isaac Sim Python launcher not found: {isaac_python}"
+                )
+            isaac_script = (
+                Path(get_package_share_directory("pickcell_isaac_sim"))
+                / ".." / ".." / "lib" / "pickcell_isaac_sim"
+                / "run_pickcell_scene.py"
+            ).resolve()
+            isaac_urdf_path = (
+                Path(tempfile.gettempdir())
+                / f"pickcell_isaac_description_{config_hash}.urdf"
+            )
+            isaac_urdf_path.write_text(
+                robot_description, encoding="utf-8"
+            )
+            internal_ros_lib = (
+                isaac_root / "exts" / "isaacsim.ros2.core"
+                / "humble" / "lib"
+            )
+            isaac_environment = {
+                "ROS_DISTRO": "humble",
+                "RMW_IMPLEMENTATION": "rmw_fastrtps_cpp",
+                "LD_LIBRARY_PATH": os.pathsep.join(filter(None, [
+                    os.environ.get("LD_LIBRARY_PATH", ""),
+                    str(internal_ros_lib),
+                ])),
+            }
+            isaac_command = [
+                str(isaac_python),
+                str(isaac_script),
+                "--urdf", str(isaac_urdf_path),
+                "--usd-dir", str(simulator_config["usd_directory"]),
+                "--pickcell-description",
+                str(Path(get_package_share_directory(
+                    "pickcell_description"
+                ))),
+                "--kuka-description",
+                str(Path(get_package_share_directory(
+                    "kuka_quantec_support"
+                ))),
+            ]
+            if simulator_config.get("headless", True):
+                isaac_command.append("--headless")
+            actions.extend([
+                LogInfo(msg=f"Isaac Sim: {isaac_python}"),
+                ExecuteProcess(
+                    cmd=isaac_command,
+                    name="pickcell_isaac_sim",
+                    output="screen",
+                    additional_env=isaac_environment,
+                ),
+            ])
         actions.extend([
             LogInfo(
                 msg=(
@@ -65,9 +142,23 @@ def generate_launch_description() -> LaunchDescription:
                 name="robot_state_publisher",
                 namespace=namespace,
                 parameters=[{
-                    "robot_description": robot_description,
+                    "robot_description": robot_visual_description,
                     "use_sim_time": use_sim_time,
                 }],
+                output="screen",
+            ),
+            Node(
+                package="robot_state_publisher",
+                executable="robot_state_publisher",
+                name="pallet_state_publisher",
+                namespace=namespace,
+                parameters=[{
+                    "robot_description": pallet_description,
+                    "use_sim_time": use_sim_time,
+                }],
+                remappings=[
+                    ("robot_description", "pallet_description"),
+                ],
                 output="screen",
             ),
         ])
@@ -77,7 +168,7 @@ def generate_launch_description() -> LaunchDescription:
                 / f"pickcell_robot_description_{config_hash}.urdf"
             )
             joint_description_path.write_text(
-                robot_description, encoding="utf-8"
+                robot_visual_description, encoding="utf-8"
             )
             joint_state_parameters = {
                 "rate": int(robot_config.get("joint_state_rate_hz", 10)),
