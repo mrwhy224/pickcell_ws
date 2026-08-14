@@ -6,16 +6,18 @@ The current workspace demonstrates one simple data flow:
 mock point publisher -> target pose and TF
 ```
 
-The same launch publishes the cell and KUKA KR 16 R2010-2 frame tree using
+The same launch publishes the cell and KUKA KR 180 R2900-2 frame tree using
 `pickcell_description`. Fixed frames are published on `/tf_static`; the six
-robot joints are initialized to zero and published on `/tf` for simulation.
+robot joints are initialized to the configured valid bent pose and published
+on `/tf` for simulation.
 
-The exact robot kinematics and meshes come from the released ROS 2
-`kuka_cybertech_support` package. Install it once with:
+The released ROS 2 packages do not currently contain an exact KR 180 model.
+The maintained KR 240 R2900-2 QUANTEC model is therefore used as a temporary
+same-family, same-reach geometry proxy. Install its support package once with:
 
 ```bash
 sudo apt update
-sudo apt install ros-humble-kuka-cybertech-support ros-humble-moveit
+sudo apt install ros-humble-kuka-quantec-support ros-humble-moveit
 ```
 
 The robot mode, selected model, mounting transform and future gripper TCP
@@ -30,9 +32,13 @@ same section, using degrees for readability.
 
 RViz starts automatically with the system launch. Its configured displays use:
 
-- KUKA mesh: **Robot - KUKA KR 16 R2010-2**
+- KUKA mesh: **Robot - KUKA KR 180 R2900-2** (KR 240 R2900-2 proxy geometry)
+- cell obstacle: an **open-top 0.8 m deep x 1.2 m wide x 0.8 m high wooden
+  box** with 30 mm walls, accurate hollow collision geometry, and its nearest
+  face 1 m in front of the robot base
+- box contents: **nine filled chemical bags** arranged in a repeatable,
+  randomized five-layer stack, with the top bag visible above the rim
 - planning target: a **red pose arrow** showing position and orientation
-- mock point cloud: **cyan spheres**
 
 TF axes are available as `TF frames (optional)` but disabled initially so they
 do not hide the robot. RViz can be disabled with `system.visualization.enabled`

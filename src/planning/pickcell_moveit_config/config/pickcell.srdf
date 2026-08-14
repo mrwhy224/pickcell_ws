@@ -5,12 +5,12 @@
   </group>
 
   <group_state name="home" group="manipulator">
-    <joint name="joint_1" value="0"/>
-    <joint name="joint_2" value="0"/>
-    <joint name="joint_3" value="0"/>
-    <joint name="joint_4" value="0"/>
-    <joint name="joint_5" value="0"/>
-    <joint name="joint_6" value="0"/>
+    <joint name="joint_1" value="0.3490658504"/>
+    <joint name="joint_2" value="-0.7853981634"/>
+    <joint name="joint_3" value="1.0471975512"/>
+    <joint name="joint_4" value="0.1919862177"/>
+    <joint name="joint_5" value="0.5235987756"/>
+    <joint name="joint_6" value="0.1745329252"/>
   </group_state>
 
   <disable_collisions link1="robot_base" link2="base_link" reason="Adjacent"/>

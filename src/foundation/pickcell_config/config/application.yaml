@@ -4,13 +4,15 @@ system:
   namespace: pickcell
   use_sim_time: false
   robot:
-    model: kr16_r2010_2
+    # Exact KR 180 ROS meshes are unavailable; description uses the maintained
+    # same-family/same-reach KR 240 R2900-2 geometry as a temporary proxy.
+    model: kr180_r2900_2
     mode: sim
     # Publishes the configured pose until a simulator or hardware driver exists.
     joint_state_source: simulation_topic
     joint_state_rate_hz: 10
-    # Temporary bent pose for RViz testing. Set all six values to 0 to restore
-    # the original all-zero pose.
+    # Valid bent pose for RViz testing. Joint 2 must remain between -140 and
+    # -5 degrees for this QUANTEC model, so an all-zero pose is invalid.
     initial_joint_positions_deg:
       joint_1: 20.0
       joint_2: -45.0
@@ -74,7 +76,7 @@ nodes:
       ]
       # One planning target: [X, Y, Z, A, B, C].
       # XYZ is in metres; KUKA-style ABC (Z-Y-X) is in degrees.
-      target_pose: [1.80, 0.0, 0.70, 0.0, 0.0, 0.0]
+      target_pose: [2.00, 1.0, 2.00, 50.0, 40.0, 0.0]
       # TF child frame broadcast from frame_id using target_pose.
       target_frame_id: motion_planning_target
       point_cloud_topic: planning/point_cloud
@@ -86,8 +88,8 @@ nodes:
     executable: motion_solver
     parameters:
       joint_names: [joint_1, joint_2, joint_3, joint_4, joint_5, joint_6]
-      joint_lower_limits: [-3.2288591162, -3.2288591162, -2.4085543678, -6.1086523820, -2.2689280276, -6.1086523820]
-      joint_upper_limits: [3.2288591162, 1.1344640138, 3.0543261910, 6.1086523820, 2.2689280276, 6.1086523820]
+      joint_lower_limits: [-3.2288591162, -2.4434609528, -2.0943951024, -6.1086523820, -2.1380283337, -6.1086523820]
+      joint_upper_limits: [3.2288591162, -0.0872664626, 2.9321531434, 6.1086523820, 2.1380283337, 6.1086523820]
       initial_positions_deg: [20.0, -45.0, 60.0, 11.0, 30.0, 10.0]
       optimizer_weights: [1.0, 1.0, 1.0, 0.5, 0.5, 0.25]
       group_name: manipulator
