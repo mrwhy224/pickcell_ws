@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find pickcell_description)/urdf/chemical_bag.xacro"/>
+
+  <xacro:macro name="bag_pallet" params="parent">
+    <!-- Wall-free wooden pallet: 0.8 m deep, 1.2 m wide and 0.15 m high. -->
+    <link name="bag_pallet">
+      <visual>
+        <geometry>
+          <box size="0.8 1.2 0.15"/>
+        </geometry>
+        <material name="wood_brown">
+          <color rgba="0.55 0.30 0.12 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <geometry>
+          <box size="0.8 1.2 0.15"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="cell_to_bag_pallet" type="fixed">
+      <parent link="${parent}"/>
+      <child link="bag_pallet"/>
+      <origin xyz="1.4 0 0.075" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Repeatable randomized five-layer stack. -->
+    <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_01"
+      xyz="-0.025 -0.245 0.155" rpy="0 0 0.035"
+      mass="22.4" scale_x="0.97" scale_y="1.02" scale_z="1.00"/>
+    <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_02"
+      xyz="0.030 0.250 0.155" rpy="0 0 -0.045"
+      mass="23.1" scale_x="1.01" scale_y="0.96" scale_z="0.98"/>
+    <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_03"
+      xyz="0.018 -0.238 0.320" rpy="0 0 -0.055"
+      mass="21.8" scale_x="0.98" scale_y="1.01" scale_z="1.00"/>
+    <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_04"
+      xyz="-0.032 0.242 0.320" rpy="0 0 0.050"
+      mass="23.6" scale_x="1.00" scale_y="0.97" scale_z="0.99"/>
+    <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_05"
+      xyz="-0.035 -0.250 0.485" rpy="0 0 0.060"
+      mass="22.7" scale_x="0.96" scale_y="1.03" scale_z="1.00"/>
+    <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_06"
+      xyz="0.025 0.235 0.485" rpy="0 0 -0.030"
+      mass="21.5" scale_x="1.02" scale_y="0.95" scale_z="0.97"/>
+    <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_07"
+      xyz="0.032 -0.240 0.650" rpy="0 0 -0.040"
+      mass="23.3" scale_x="0.99" scale_y="1.00" scale_z="0.98"/>
+    <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_08"
+      xyz="-0.020 0.248 0.650" rpy="0 0 0.055"
+      mass="22.0" scale_x="0.97" scale_y="1.02" scale_z="1.00"/>
+    <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_09"
+      xyz="0.015 0.005 0.815" rpy="0 0 -0.025"
+      mass="22.9" scale_x="1.00" scale_y="0.98" scale_z="1.00"/>
+  </xacro:macro>
+</robot>
