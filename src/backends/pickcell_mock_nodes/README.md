@@ -10,6 +10,10 @@ It has no separate configuration or launch file.
 simulated `joint_states`; `robot_state_publisher` then derives the robot TF.
 The target pose and target TF are never modified by this node.
 
+Its publication timer uses wall time so the configured initial pose remains
+available in RViz before an external simulator starts publishing `/clock`.
+Joint-state message timestamps still use the system-wide ROS clock.
+
 All values come from:
 
 ```text

@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 import rclpy
+from rclpy.clock import Clock, ClockType
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
 
@@ -44,7 +45,13 @@ class JointStateSimulationNode(Node):
             self._apply,
             10,
         )
-        self._timer = self.create_timer(0.1, self._publish)
+        # Keep the fallback arm visible before Isaac starts publishing /clock.
+        # Message stamps still use the node's ROS clock, but publication must
+        # not stall merely because simulated time has not started yet.
+        self._wall_clock = Clock(clock_type=ClockType.SYSTEM_TIME)
+        self._timer = self.create_timer(
+            0.1, self._publish, clock=self._wall_clock
+        )
 
     def _apply(self, message: JointState) -> None:
         selected = positions_in_order(message, self._joint_names)
