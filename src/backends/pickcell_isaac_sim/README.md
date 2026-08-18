@@ -25,8 +25,9 @@ rendering. The point-cloud topic appears after that initialization completes.
 2. Create an RTX camera at `/World/PickCell/overhead_depth_camera` using the
    values in `config/overhead_depth_camera.yaml`. The camera is fixed at
    `(1.4, 0.0, 2.0) m` and looks vertically down at the pallet centre.
-3. Enable `isaacsim.ros2.bridge` and create ROS 2 camera publishers for depth,
-   camera info, and point cloud. Configure the namespace, topics, frame ID,
+   Add a neutral dome light so the RGB render is usable in headless mode.
+3. Enable `isaacsim.ros2.bridge` and create ROS 2 camera publishers for RGB,
+   depth, camera info, and point cloud. Configure the namespace, topics, frame ID,
    resolution, clipping range, field of view, and tick rate from the YAML.
 4. Publish `/clock`. Do not publish camera TF from Isaac: the workspace's
    `robot_state_publisher` already owns the fixed
@@ -57,6 +58,7 @@ independent.
 
 ```bash
 ros2 topic hz /pickcell/sensors/overhead_depth/points
+ros2 topic hz /pickcell/sensors/overhead_depth/color/image_raw
 ros2 topic echo --once /pickcell/sensors/overhead_depth/camera_info
 ros2 topic echo --once /pickcell/sensors/overhead_depth/points
 ros2 run tf2_ros tf2_echo cell overhead_depth_camera_optical_frame

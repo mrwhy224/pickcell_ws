@@ -62,11 +62,23 @@ system:
       horizontal_fov_deg: 75.0
       clipping_range_m: [0.1, 3.0]
       publish_rate_hz: 15.0
+      rgb_topic: sensors/overhead_depth/color/image_raw
       depth_topic: sensors/overhead_depth/depth/image_raw
       camera_info_topic: sensors/overhead_depth/camera_info
       point_cloud_topic: sensors/overhead_depth/points
 
 nodes:
+  dataset_capture:
+    mode: capture
+    package: pickcell_dataset_tools
+    executable: dataset_capture
+    parameters:
+      rgb_topic: sensors/overhead_depth/color/image_raw
+      depth_topic: sensors/overhead_depth/depth/image_raw
+      camera_info_topic: sensors/overhead_depth/camera_info
+      output_directory: /home/mahdi/pickcell_ws/datasets/bags_raw
+      synchronization_slop_seconds: 0.05
+
   joint_state_sim:
     mode: sim
     package: pickcell_mock_nodes

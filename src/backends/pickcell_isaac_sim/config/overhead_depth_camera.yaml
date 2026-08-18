@@ -11,6 +11,7 @@ overhead_depth_camera:
   publish_rate_hz: 15.0
   ros:
     node_namespace: pickcell
+    rgb_topic: sensors/overhead_depth/color/image_raw
     depth_topic: sensors/overhead_depth/depth/image_raw
     camera_info_topic: sensors/overhead_depth/camera_info
     point_cloud_topic: sensors/overhead_depth/points

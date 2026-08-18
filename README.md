@@ -37,7 +37,7 @@ RViz starts automatically with the system launch. Its configured displays use:
   pallet**, with its nearest edge 1 m in front of the robot base
 - pallet load: **nine filled chemical bags** arranged in a repeatable,
   randomized five-layer stack
-- simulated sensor: a fixed **640 x 480 overhead depth camera** at
+- simulated sensor: a fixed **640 x 480 overhead RGB-D camera** at
   `(1.4, 0.0, 2.0) m`, looking straight down at the pallet
 - planning target: a **red pose arrow** showing position and orientation
 
@@ -88,6 +88,48 @@ weighted joint displacement, and applies that configuration to the simulated
 joint-state display. It does not plan a path or command a controller.
 After the initial symlink build, configuration edits only require restarting the
 launch; they do not require another build.
+
+## Capture a bag dataset scene
+
+The RGB and depth images come from the same simulated optical camera and are
+therefore pixel-aligned. To save the latest synchronized pair, calibration,
+and an empty instance-mask template, run:
+
+```bash
+ros2 service call /pickcell/dataset/capture std_srvs/srv/Trigger '{}'
+```
+
+Scenes are written under `/home/mahdi/pickcell_ws/datasets/bags_raw` by
+default. Annotate each
+`instance.png` so that 0 is background and 1, 2, ... identify the visible bags.
+Depth is stored losslessly as a 16-bit PNG in millimetres; `camera.json` records
+the original ROS encoding and a `depth_scale` of 1000.
+The capture node creates the dataset root when it starts and logs its absolute
+path. A numbered `scene_*` directory is created only after the service reports
+`success: true`.
+
+## Generate a synthetic dataset automatically
+
+The dedicated headless launch randomizes a physically plausible bottom-up bag
+stack, varies the bag count and poses, and writes one readable `scene_*` folder
+per sample. Each folder contains `color.png`, 16-bit millimetre `depth.png`,
+raw-ID `instance.png`, `pointcloud.ply`, and JSON camera, label, and pose
+metadata. The KUKA links are hidden only during dataset generation so the arm
+cannot occlude the bags; normal simulation and ROS camera output still include
+the robot. In `instance.png`, 0 is background and the visible bags use compact
+IDs 1, 2, ...:
+
+```bash
+ros2 launch pickcell_bringup generate_dataset.launch.py \
+  sample_count:=10000 \
+  output_directory:=/home/mahdi/pickcell_ws/datasets/bags_run_001 \
+  seed:=42 min_bags:=1 max_bags:=9
+```
+
+An existing dataset is never overwritten. If the requested directory contains
+files, the generator automatically creates a numbered sibling such as
+`bags_run_001_001`. Generation progress is printed every 100 samples. Temporary
+NumPy arrays are converted and removed before the process exits automatically.
 
 [`deep-research-report.md`](deep-research-report.md) is a future architecture
 reference; it does not describe files that must exist today.
