@@ -10,6 +10,9 @@ __pycache__/
 .coverage
 htmlcov/
 
+# Generated synthetic and captured datasets
+datasets/
+
 # CMake and editor artifacts
 CMakeFiles/
 CMakeCache.txt
