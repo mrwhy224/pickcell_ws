@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import random
 import shutil
+import traceback
 
 
 def parse_arguments():
@@ -117,88 +118,219 @@ def write_pointcloud_ply(
 def convert_replicator_output(
     temporary: Path, output: Path, scenes: list[dict]
 ) -> None:
-    """Convert Replicator arrays into readable per-scene dataset folders."""
+    """Convert synchronized Replicator frames into atomic scene folders."""
     for index, scene in enumerate(scenes):
         frame = f"{index:04d}"
         scene_directory = output / f"scene_{index:06d}"
-        scene_directory.mkdir()
+        staging_directory = output / f".scene_{index:06d}.tmp"
+        if scene_directory.exists() or staging_directory.exists():
+            raise FileExistsError(
+                f"Refusing to overwrite scene output for frame {frame}"
+            )
 
-        shutil.move(temporary / f"rgb_{frame}.png", scene_directory / "color.png")
-        depth = np.load(temporary / f"distance_to_image_plane_{frame}.npy")
-        valid_depth = np.isfinite(depth) & (depth > 0.0)
-        depth_mm = np.zeros(depth.shape, dtype=np.uint16)
-        depth_mm[valid_depth] = np.clip(
-            np.rint(depth[valid_depth] * 1000.0), 1, 65535
-        ).astype(np.uint16)
-        Image.fromarray(depth_mm).save(scene_directory / "depth.png")
-
-        raw_instance = np.asarray(Image.open(
+        raw_instance_path = (
             temporary / f"instance_id_segmentation_{frame}.png"
-        ))
-        raw_mapping = json.loads((
-            temporary / f"instance_id_segmentation_mapping_{frame}.json"
-        ).read_text(encoding="utf-8"))
-        bag_instances = sorted(
-            (
-                (int(raw_id), str(prim_path))
-                for raw_id, prim_path in raw_mapping.items()
-                if "/chemical_bag_" in str(prim_path)
-            ),
-            key=lambda item: item[1],
         )
-        visible_bags = [
-            (raw_id, prim_path)
-            for raw_id, prim_path in bag_instances
+        raw_mapping_path = (
+            temporary / f"instance_id_segmentation_mapping_{frame}.json"
+        )
+        raw_instance = np.asarray(Image.open(raw_instance_path))
+        raw_mapping = json.loads(raw_mapping_path.read_text(encoding="utf-8"))
+        expected_paths = {
+            str(bag["name"]): str(bag["prim_path"])
+            for bag in scene.get("bags", [])
+        }
+        bag_instances = []
+        for raw_id, labels in raw_mapping.items():
+            label_text = json.dumps(labels, sort_keys=True)
+            matches = [
+                name for name in expected_paths if name in label_text
+            ]
+            if len(matches) == 1:
+                bag_instances.append(
+                    (int(raw_id), expected_paths[matches[0]])
+                )
+        bag_instances.sort(key=lambda item: item[1])
+        visible_sub_ids = [
+            (raw_id, prim_path) for raw_id, prim_path in bag_instances
             if np.any(raw_instance == raw_id)
         ]
-        if not visible_bags:
-            raise RuntimeError(
-                f"Frame {frame} contains no renderer IDs for bag geometry"
+        grouped_bags = {}
+        for raw_id, prim_path in visible_sub_ids:
+            bag_name = next(
+                part for part in Path(prim_path).parts
+                if part.startswith("chemical_bag_")
             )
-        instance = np.zeros(raw_instance.shape, dtype=np.uint16)
-        instance_mapping = {"0": "BACKGROUND"}
-        semantics = {"0": {"class": "BACKGROUND"}}
-        for instance_id, (raw_id, prim_path) in enumerate(
-            visible_bags, start=1
+            group = grouped_bags.setdefault(
+                bag_name, {"path": prim_path, "raw_ids": []}
+            )
+            group["raw_ids"].append(raw_id)
+        visible_bags = [
+            (tuple(grouped_bags[name]["raw_ids"]),
+             str(grouped_bags[name]["path"]))
+            for name in sorted(grouped_bags)
+        ]
+        expected_bag_names = set(expected_paths)
+        mapped_bag_names = {
+            part
+            for _, prim_path in visible_bags
+            for part in Path(prim_path).parts
+            if part.startswith("chemical_bag_")
+        }
+        if not visible_bags or not mapped_bag_names.issubset(
+            expected_bag_names
         ):
-            pixels = raw_instance == raw_id
-            instance[pixels] = instance_id
-            instance_mapping[str(instance_id)] = prim_path
-            semantics[str(instance_id)] = {"class": "bag"}
-        Image.fromarray(instance).save(scene_directory / "instance.png")
-        (scene_directory / "instance_mapping.json").write_text(
-            json.dumps(instance_mapping, indent=2) + "\n", encoding="utf-8"
-        )
-        (scene_directory / "semantics.json").write_text(
-            json.dumps(semantics, indent=2) + "\n", encoding="utf-8"
-        )
-        for source_name, destination_name in (
-            ("camera_params", "camera.json"),
-        ):
-            shutil.move(
-                temporary / f"{source_name}_{frame}.json",
-                scene_directory / destination_name,
+            image_ids = np.unique(raw_instance).tolist()
+            mapped_bag_ids = [raw_id for raw_id, _ in bag_instances]
+            raise RuntimeError(
+                f"Frame {frame} has desynchronized instance annotations: "
+                f"image IDs {image_ids}, mapped bag IDs {mapped_bag_ids}, "
+                f"expected bags {sorted(expected_bag_names)}, mapped bags "
+                f"{sorted(mapped_bag_names)}"
             )
 
-        write_pointcloud_ply(
-            scene_directory / "pointcloud.ply",
-            np.load(temporary / f"pointcloud_{frame}.npy"),
-            np.load(temporary / f"pointcloud_rgb_{frame}.npy"),
-            np.load(temporary / f"pointcloud_normals_{frame}.npy"),
-            np.load(temporary / f"pointcloud_semantic_{frame}.npy"),
-            np.load(temporary / f"pointcloud_instance_{frame}.npy"),
-        )
-        (scene_directory / "scene.json").write_text(
-            json.dumps({
-                **scene,
-                "depth_encoding": "16UC1",
-                "depth_unit": "millimetres",
-                "pointcloud_unit": "metres",
-            }, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        staging_directory.mkdir()
+        try:
+            _convert_replicator_frame(
+                temporary, staging_directory, frame, scene,
+                raw_instance, visible_bags,
+            )
+            staging_directory.rename(scene_directory)
+        except BaseException:
+            shutil.rmtree(staging_directory)
+            raise
 
     shutil.rmtree(temporary)
+
+
+def _convert_replicator_frame(
+    temporary: Path,
+    scene_directory: Path,
+    frame: str,
+    scene: dict,
+    raw_instance: np.ndarray,
+    visible_bags: list[tuple[tuple[int, ...], str]],
+) -> None:
+    """Convert one already-validated frame inside a staging directory."""
+    shutil.copy2(temporary / f"rgb_{frame}.png", scene_directory / "color.png")
+    depth = np.load(temporary / f"distance_to_image_plane_{frame}.npy")
+    valid_depth = np.isfinite(depth) & (depth > 0.0)
+    depth_mm = np.zeros(depth.shape, dtype=np.uint16)
+    depth_mm[valid_depth] = np.clip(
+        np.rint(depth[valid_depth] * 1000.0), 1, 65535
+    ).astype(np.uint16)
+    Image.fromarray(depth_mm).save(scene_directory / "depth.png")
+
+    instance = np.zeros(raw_instance.shape, dtype=np.uint16)
+    instance_mapping = {"0": "BACKGROUND"}
+    semantics = {"0": {"class": "BACKGROUND"}}
+    for instance_id, (raw_ids, prim_path) in enumerate(visible_bags, start=1):
+        instance[np.isin(raw_instance, raw_ids)] = instance_id
+        instance_mapping[str(instance_id)] = prim_path
+        semantics[str(instance_id)] = {"class": "bag"}
+    Image.fromarray(instance).save(scene_directory / "instance.png")
+    (scene_directory / "instance_mapping.json").write_text(
+        json.dumps(instance_mapping, indent=2) + "\n", encoding="utf-8"
+    )
+    (scene_directory / "semantics.json").write_text(
+        json.dumps(semantics, indent=2) + "\n", encoding="utf-8"
+    )
+    camera_source = temporary / f"camera_params_{frame}.json"
+    shutil.copy2(camera_source, scene_directory / "camera.json")
+    rgb = np.asarray(Image.open(temporary / f"rgb_{frame}.png"))[:, :, :3]
+    points, colors, normals, semantic_ids, instance_ids = (
+        _pointcloud_from_images(
+            depth, rgb, instance,
+            json.loads(camera_source.read_text(encoding="utf-8")),
+        )
+    )
+    write_pointcloud_ply(
+        scene_directory / "pointcloud.ply",
+        points, colors, normals, semantic_ids, instance_ids,
+    )
+    (scene_directory / "scene.json").write_text(
+        json.dumps({
+            **scene,
+            "depth_encoding": "16UC1",
+            "depth_unit": "millimetres",
+            "pointcloud_unit": "metres",
+            "pointcloud_frame": "opencv_optical",
+        }, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _pointcloud_from_images(
+    depth: np.ndarray,
+    rgb: np.ndarray,
+    instance: np.ndarray,
+    camera: dict,
+) -> tuple[np.ndarray, ...]:
+    """Back-project synchronized images into an optical-frame point cloud."""
+    height, width = depth.shape
+    projection = np.asarray(camera["cameraProjection"], dtype=np.float64)
+    if projection.shape != (16,):
+        raise ValueError("cameraProjection must contain 16 values")
+    fx = abs(float(projection[0])) * width / 2.0
+    fy = abs(float(projection[5])) * height / 2.0
+    if fx <= 0.0 or fy <= 0.0:
+        raise ValueError("camera projection has invalid focal lengths")
+    rows, columns = np.indices(depth.shape, dtype=np.float32)
+    z = depth.astype(np.float32, copy=False)
+    valid = np.isfinite(z) & (z > 0.0)
+    finite_z = np.where(valid, z, 0.0)
+    xyz = np.stack((
+        (columns - (width - 1) / 2.0) * finite_z / fx,
+        (rows - (height - 1) / 2.0) * finite_z / fy,
+        finite_z,
+    ), axis=-1)
+
+    derivative_u = np.gradient(xyz, axis=1)
+    derivative_v = np.gradient(xyz, axis=0)
+    normals = np.cross(derivative_u, derivative_v)
+    lengths = np.linalg.norm(normals, axis=2)
+    normal_valid = valid & np.isfinite(lengths) & (lengths > 1e-12)
+    normals[normal_valid] /= lengths[normal_valid][:, None]
+    normals[~normal_valid] = (0.0, 0.0, -1.0)
+
+    return (
+        xyz[valid].astype(np.float32),
+        rgb[valid].astype(np.uint8),
+        normals[valid].astype(np.float32),
+        (instance[valid] > 0).astype(np.uint32),
+        instance[valid].astype(np.uint32),
+    )
+
+
+def _write_annotator_frame(
+    temporary: Path, frame: str, annotators: dict
+) -> None:
+    """Persist one synchronous direct-annotator snapshot for conversion."""
+    rgb = np.asarray(annotators["rgb"].get_data())[:, :, :3]
+    depth = np.asarray(annotators["depth"].get_data())
+    instance_payload = annotators["instance"].get_data()
+    raw_instance = np.asarray(instance_payload["data"])
+    if raw_instance.max(initial=0) > np.iinfo(np.uint16).max:
+        raise ValueError("renderer instance IDs exceed uint16 PNG capacity")
+    raw_mapping = instance_payload["info"]["idToLabels"]
+    camera_payload = annotators["camera"].get_data()
+    camera_document = {
+        key: value.tolist() if isinstance(value, np.ndarray) else value
+        for key, value in camera_payload.items()
+    }
+
+    Image.fromarray(rgb.astype(np.uint8)).save(temporary / f"rgb_{frame}.png")
+    np.save(temporary / f"distance_to_image_plane_{frame}.npy", depth)
+    Image.fromarray(raw_instance.astype(np.uint16)).save(
+        temporary / f"instance_id_segmentation_{frame}.png"
+    )
+    (temporary / f"instance_id_segmentation_mapping_{frame}.json").write_text(
+        json.dumps({str(key): value for key, value in raw_mapping.items()}),
+        encoding="utf-8",
+    )
+    (temporary / f"camera_params_{frame}.json").write_text(
+        json.dumps(camera_document), encoding="utf-8"
+    )
 
 
 def select_dataset_output(requested: Path) -> Path:
@@ -325,7 +457,12 @@ def randomize_bags(bag_prims, bag_count: int, rng: random.Random) -> list[dict]:
     for index, prim in enumerate(bag_prims):
         imageable = UsdGeom.Imageable(prim)
         if index >= bag_count:
-            imageable.MakeInvisible()
+            # RTX semantic visibility can lag USD visibility changes across
+            # captures. Keep the prim visible and park it well outside the
+            # camera volume so RGB, depth, and semantics share one pose-based
+            # update path.
+            imageable.MakeVisible()
+            set_bag_pose(prim, (0.0, 0.0, -100.0 - index), 0.0)
             continue
 
         imageable.MakeVisible()
@@ -344,6 +481,7 @@ def randomize_bags(bag_prims, bag_count: int, rng: random.Random) -> list[dict]:
         set_bag_pose(prim, xyz, yaw)
         scene_bags.append({
             "name": prim.GetName(),
+            "prim_path": str(prim.GetPath()),
             "xyz_local_m": list(xyz),
             "yaw_deg": yaw,
         })
@@ -366,21 +504,24 @@ def generate_dataset(camera, render_product: str) -> None:
     hide_robot_for_dataset()
     for prim in bag_prims:
         add_labels(prim, labels=["bag"], taxonomy="class")
+        add_labels(
+            prim, labels=[prim.GetName()], taxonomy="instance_name"
+        )
 
     temporary = output / ".replicator"
     temporary.mkdir()
-    writer = rep.WriterRegistry.get("BasicWriter")
-    writer.initialize(
-        output_dir=str(temporary),
-        rgb=True,
-        distance_to_image_plane=True,
-        instance_id_segmentation=True,
-        colorize_instance_id_segmentation=False,
-        camera_params=True,
-        pointcloud=True,
-        pointcloud_include_unlabelled=True,
-    )
-    writer.attach([render_product])
+    annotators = {
+        "rgb": rep.AnnotatorRegistry.get_annotator("rgb"),
+        "depth": rep.AnnotatorRegistry.get_annotator(
+            "distance_to_image_plane"
+        ),
+        "instance": rep.AnnotatorRegistry.get_annotator(
+            "semantic_segmentation", init_params={"colorize": False}
+        ),
+        "camera": rep.AnnotatorRegistry.get_annotator("camera_params"),
+    }
+    for annotator in annotators.values():
+        annotator.attach(render_product)
 
     rng = random.Random(args.dataset_seed)
     scenes = []
@@ -388,7 +529,18 @@ def generate_dataset(camera, render_product: str) -> None:
         bag_count = rng.randint(args.min_bags, args.max_bags)
         scene_bags = randomize_bags(bag_prims, bag_count, rng)
         simulation_app.update()
-        rep.orchestrator.step(rt_subframes=4, delta_time=0.0)
+        # RTX semantic/instance state trails a USD visibility change by one
+        # capture. Discard a settling capture before reading the annotators.
+        rep.orchestrator.step(
+            rt_subframes=4, delta_time=1.0 / CAMERA_RATE_HZ
+        )
+        simulation_app.update()
+        rep.orchestrator.step(
+            rt_subframes=4, delta_time=1.0 / CAMERA_RATE_HZ
+        )
+        _write_annotator_frame(
+            temporary, f"{sample_index:04d}", annotators
+        )
         scenes.append({
             "sample_index": sample_index,
             "bag_count": bag_count,
@@ -400,8 +552,8 @@ def generate_dataset(camera, render_product: str) -> None:
                 f"dataset scenes",
                 flush=True,
             )
-    rep.orchestrator.wait_until_complete()
-    writer.detach()
+    for annotator in annotators.values():
+        annotator.detach()
     convert_replicator_output(temporary, output, scenes)
     (output / "generation.json").write_text(
         json.dumps({
@@ -489,6 +641,9 @@ def main() -> None:
     if args.dataset_samples:
         try:
             generate_dataset(camera, render_product)
+        except BaseException:
+            traceback.print_exc()
+            raise
         finally:
             simulation_app.close()
         return
