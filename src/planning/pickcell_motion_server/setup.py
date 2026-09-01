@@ -28,6 +28,8 @@ setup(
             "motion_cycle = pickcell_motion_server.cycle_node:main",
             "trajectory_executor = "
             "pickcell_motion_server.trajectory_executor:main",
+            "bag_transfer_visualizer = "
+            "pickcell_motion_server.bag_transfer_visualizer:main",
         ],
     },
 )

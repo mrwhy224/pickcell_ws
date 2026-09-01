@@ -77,6 +77,9 @@ class TrajectoryExecutorNode(Node):
         self._complete_publisher = self.create_publisher(
             Empty, "planning/cycle_complete", 1
         )
+        self._failed_publisher = self.create_publisher(
+            Empty, "planning/cycle_failed", 1
+        )
         self._gripper_publisher = self.create_publisher(
             Bool, "gripper/closed", 1
         )
@@ -190,6 +193,7 @@ class TrajectoryExecutorNode(Node):
             )
             self._queue.clear()
             self._executing_cycle = False
+            self._failed_publisher.publish(Empty())
             self._home_reached = False
             self._queue.append(self._home_pose())
             return
@@ -216,6 +220,7 @@ class TrajectoryExecutorNode(Node):
             self.get_logger().error("MoveIt failed to plan cycle waypoint")
             self._queue.clear()
             self._executing_cycle = False
+            self._failed_publisher.publish(Empty())
             self._home_reached = False
             self._queue.append(self._home_pose())
             return

@@ -1,10 +1,16 @@
 <?xml version="1.0"?>
 
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="pickcell_bag_pallet">
-  <xacro:include filename="$(find pickcell_description)/urdf/bag_pallet.xacro"/>
-
-  <!-- The robot description owns world -> cell; this model starts at cell so
-       its state publisher only owns pallet and bag transforms. -->
+  <!-- Bags are stateful markers so a picked payload can follow the TCP. -->
   <link name="cell"/>
-  <xacro:bag_pallet parent="cell"/>
+  <link name="bag_pallet">
+    <visual>
+      <geometry><box size="0.8 1.2 0.15"/></geometry>
+      <material name="wood_brown"><color rgba="0.55 0.30 0.12 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="cell_to_bag_pallet" type="fixed">
+    <parent link="cell"/><child link="bag_pallet"/>
+    <origin xyz="1.4 0 0.075" rpy="0 0 0"/>
+  </joint>
 </robot>

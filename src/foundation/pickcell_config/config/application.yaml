@@ -105,6 +105,7 @@ nodes:
       same_height_tolerance_m: 0.02
       top_depth_percentile: 10.0
       cycle_complete_topic: planning/cycle_complete
+      cycle_failed_topic: planning/cycle_failed
       picked_exclusion_radius_m: 0.18
       synchronization_slop_seconds: 0.05
       input_is_rectified: true
@@ -172,3 +173,9 @@ nodes:
       planning_frame: cell
       ik_timeout_seconds: 0.10
       camera_clear_home: [-1.40, 0.0, 1.05, 0.0, 180.0, 0.0]
+
+  bag_transfer_visualizer:
+    mode: sim
+    package: pickcell_motion_server
+    executable: bag_transfer_visualizer
+    parameters: {}

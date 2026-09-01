@@ -71,6 +71,7 @@ class LiveInstanceSegmentation(Node):
         self.declare_parameter("same_height_tolerance_m", 0.02)
         self.declare_parameter("top_depth_percentile", 10.0)
         self.declare_parameter("cycle_complete_topic", "planning/cycle_complete")
+        self.declare_parameter("cycle_failed_topic", "planning/cycle_failed")
         self.declare_parameter("picked_exclusion_radius_m", 0.18)
         self.declare_parameter("synchronization_slop_seconds", 0.05)
         self.declare_parameter("input_is_rectified", True)
@@ -112,6 +113,12 @@ class LiveInstanceSegmentation(Node):
             Empty,
             self.get_parameter("cycle_complete_topic").value,
             self._cycle_complete,
+            1,
+        )
+        self.create_subscription(
+            Empty,
+            self.get_parameter("cycle_failed_topic").value,
+            self._cycle_failed,
             1,
         )
         rgb = Subscriber(
@@ -247,6 +254,16 @@ class LiveInstanceSegmentation(Node):
     def _cycle_complete(self, _message: Empty) -> None:
         """Exclude the completed pick location and allow the next candidate."""
         if self._pending_pick is not None:
+            self._picked_points.append(self._pending_pick)
+            self._pending_pick = None
+        self._cycle_active = False
+
+    def _cycle_failed(self, _message: Empty) -> None:
+        """Skip an unreachable candidate so one bag cannot stall the cell."""
+        if self._pending_pick is not None:
+            self.get_logger().warning(
+                "Skipping unreachable bag candidate and selecting the next"
+            )
             self._picked_points.append(self._pending_pick)
             self._pending_pick = None
         self._cycle_active = False

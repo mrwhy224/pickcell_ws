@@ -81,6 +81,9 @@ class MotionCycleNode(Node):
         self._path_publisher = self.create_publisher(
             Path, str(self.get_parameter("cycle_path_topic").value), 1
         )
+        self._active_point_publisher = self.create_publisher(
+            PointStamped, "planning/active_bag_point", 1
+        )
         self.create_subscription(
             PointStamped,
             str(self.get_parameter("selected_point_topic").value),
@@ -104,6 +107,7 @@ class MotionCycleNode(Node):
             )
             return
         point = do_transform_point(selected, transform)
+        self._active_point_publisher.publish(point)
         bag = CartesianPoseABC(
             point.point.x, point.point.y, point.point.z,
             0.0, 180.0, 0.0,
