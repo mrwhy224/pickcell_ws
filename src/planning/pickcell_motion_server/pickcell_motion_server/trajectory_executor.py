@@ -13,7 +13,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Empty
+from std_msgs.msg import Bool, Empty
 from trajectory_msgs.msg import JointTrajectory
 
 from .cycle import CartesianPoseABC
@@ -77,6 +77,9 @@ class TrajectoryExecutorNode(Node):
         self._complete_publisher = self.create_publisher(
             Empty, "planning/cycle_complete", 1
         )
+        self._gripper_publisher = self.create_publisher(
+            Bool, "gripper/closed", 1
+        )
         self.create_subscription(
             JointState, "joint_states", self._joint_state, 10,
             callback_group=self._group,
@@ -138,7 +141,15 @@ class TrajectoryExecutorNode(Node):
             or time.monotonic() < self._busy_until
         ):
             return
-        self._queue.extend(path.poses[1:])
+        # Path pose 2 is contact with the bag and pose 6 is contact with the
+        # box. Keep the tool commands in the execution queue so they happen at
+        # the correct points instead of being discarded by nav_msgs/Path.
+        for index, pose in enumerate(path.poses[1:], start=1):
+            self._queue.append(pose)
+            if index == 2:
+                self._queue.append("grip")
+            elif index == 6:
+                self._queue.append("release")
         self._executing_cycle = True
         self.get_logger().info("Accepted selected bag cycle")
 
@@ -149,7 +160,7 @@ class TrajectoryExecutorNode(Node):
             if self._executing_cycle:
                 self._complete_publisher.publish(Empty())
                 self._executing_cycle = False
-            else:
+            elif not self._home_reached:
                 self._home_reached = True
                 self.get_logger().info(
                     "Camera-clear home reached; perception cycles enabled"
@@ -161,6 +172,14 @@ class TrajectoryExecutorNode(Node):
         ):
             return
         target = self._queue.popleft()
+        if isinstance(target, str):
+            closed = target == "grip"
+            self._gripper_publisher.publish(Bool(data=closed))
+            self.get_logger().info(
+                "Gripper closed on selected bag" if closed
+                else "Gripper opened above drop box"
+            )
+            return
         candidates = self._solver.solve(target)
         goal = self._optimizer.choose(candidates, self._current)
         if goal is None:

@@ -80,6 +80,7 @@ class LiveInstanceSegmentation(Node):
         self._last_started = 0.0
         self._pending_pick = None
         self._picked_points = []
+        self._cycle_active = False
         self._patch_publisher = self.create_publisher(
             Image, self.get_parameter("patch_overlay_topic").value, 1
         )
@@ -225,11 +226,16 @@ class LiveInstanceSegmentation(Node):
                 color_by_instance=False,
             ))
             if selected is not None:
-                self._pending_pick = np.asarray(selected.pick_point_xyz)
+                if not self._cycle_active:
+                    self._pending_pick = np.asarray(selected.pick_point_xyz)
+                    self._cycle_active = True
+                # Republish the locked target until the motion executor accepts
+                # it. This covers the startup interval while the arm is still
+                # travelling to its camera-clear home.
                 point = PointStamped()
                 point.header = rgb_message.header
                 point.point.x, point.point.y, point.point.z = (
-                    selected.pick_point_xyz
+                    self._pending_pick
                 )
                 self._selected_point_publisher.publish(point)
         except (TypeError, ValueError, cv2.error) as error:
@@ -243,6 +249,7 @@ class LiveInstanceSegmentation(Node):
         if self._pending_pick is not None:
             self._picked_points.append(self._pending_pick)
             self._pending_pick = None
+        self._cycle_active = False
 
     @staticmethod
     def _selected_overlay(labels, color, selected) -> np.ndarray:
