@@ -32,8 +32,8 @@ system:
       robot_prefix: ""
       robot_mount_xyz: "0 0 0"
       robot_mount_rpy: "0 0 0"
-      # Keep this at zero until the real gripper/TCP is selected.
-      tcp_xyz: "0 0 0"
+      # Simple 300 mm rigid vacuum tool used only for the cycle demonstration.
+      tcp_xyz: "0 0 0.30"
       tcp_rpy: "0 0 0"
   tf:
     enabled: true
@@ -104,6 +104,8 @@ nodes:
       # Within this depth difference, choose the image-right candidate first.
       same_height_tolerance_m: 0.02
       top_depth_percentile: 10.0
+      cycle_complete_topic: planning/cycle_complete
+      picked_exclusion_radius_m: 0.18
       synchronization_slop_seconds: 0.05
       input_is_rectified: true
 
@@ -155,10 +157,10 @@ nodes:
       point_cloud_topic: debug/mock_point_cloud
       target_topic: planning/target_pose
 
-  motion_solver:
+  trajectory_executor:
     mode: sim
     package: pickcell_motion_server
-    executable: motion_solver
+    executable: trajectory_executor
     parameters:
       joint_names: [joint_1, joint_2, joint_3, joint_4, joint_5, joint_6]
       joint_lower_limits: [-3.2288591162, -2.4434609528, -2.0943951024, -6.1086523820, -2.1380283337, -6.1086523820]
@@ -167,6 +169,6 @@ nodes:
       optimizer_weights: [1.0, 1.0, 1.0, 0.5, 0.5, 0.25]
       group_name: manipulator
       end_effector_link: gripper_tcp
-      base_frame: robot_base
-      target_frame: motion_planning_target
-      ik_timeout_seconds: 0.05
+      planning_frame: cell
+      ik_timeout_seconds: 0.10
+      camera_clear_home: [-1.40, 0.0, 1.05, 0.0, 180.0, 0.0]

@@ -189,3 +189,6 @@ validation on the industrial controller. See
 boundaries.
 The robot's waiting/home pose is directly above the rear box, so it remains
 outside the overhead camera's pallet view until a bag has been identified.
+The launch demonstration now collision-plans and animates the complete arm
+cycle with a simple rigid vacuum gripper, then selects the next unprocessed
+candidate after returning above the box.

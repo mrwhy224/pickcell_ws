@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="simple_gripper" params="parent tcp_xyz tcp_rpy">
+    <!-- Visualization-grade rigid vacuum tool. No finger control is needed. -->
+    <link name="simple_gripper_body">
+      <visual>
+        <origin xyz="0 0 0.12"/>
+        <geometry><cylinder radius="0.075" length="0.24"/></geometry>
+        <material name="gripper_dark"><color rgba="0.12 0.14 0.16 1"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.12"/>
+        <geometry><cylinder radius="0.075" length="0.24"/></geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 0.12"/>
+        <mass value="8.0"/>
+        <inertia ixx="0.042" ixy="0" ixz="0" iyy="0.042" iyz="0" izz="0.023"/>
+      </inertial>
+    </link>
+    <joint name="tool0_to_simple_gripper" type="fixed">
+      <parent link="${parent}"/><child link="simple_gripper_body"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    <link name="gripper_tcp">
+      <visual>
+        <geometry><cylinder radius="0.13" length="0.025"/></geometry>
+        <material name="vacuum_yellow"><color rgba="0.95 0.65 0.05 1"/></material>
+      </visual>
+      <collision><geometry><cylinder radius="0.13" length="0.025"/></geometry></collision>
+    </link>
+    <joint name="simple_gripper_to_tcp" type="fixed">
+      <parent link="simple_gripper_body"/><child link="gripper_tcp"/>
+      <origin xyz="${tcp_xyz}" rpy="${tcp_rpy}"/>
+    </joint>
+  </xacro:macro>
+</robot>

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import math
+import time
 
 import rclpy
 from rclpy.clock import Clock, ClockType
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
+from trajectory_msgs.msg import JointTrajectory
 
 
 def positions_in_order(
@@ -38,12 +40,20 @@ class JointStateSimulationNode(Node):
         if len(initial) != len(self._joint_names):
             raise ValueError("joint names and initial positions must align")
         self._positions = initial
+        self._trajectory = None
+        self._trajectory_started = 0.0
         self._publisher = self.create_publisher(JointState, "joint_states", 10)
         self._subscription = self.create_subscription(
             JointState,
             "planning/selected_joint_configuration",
             self._apply,
             10,
+        )
+        self._trajectory_subscription = self.create_subscription(
+            JointTrajectory,
+            "planning/joint_trajectory",
+            self._start_trajectory,
+            1,
         )
         # Keep the fallback arm visible before Isaac starts publishing /clock.
         # Message stamps still use the node's ROS clock, but publication must
@@ -62,11 +72,45 @@ class JointStateSimulationNode(Node):
         self.get_logger().info("Applied selected configuration to simulation")
 
     def _publish(self) -> None:
+        self._update_trajectory()
         message = JointState()
         message.header.stamp = self.get_clock().now().to_msg()
         message.name = list(self._joint_names)
         message.position = list(self._positions)
         self._publisher.publish(message)
+
+    def _start_trajectory(self, message: JointTrajectory) -> None:
+        if not message.points or tuple(message.joint_names) != self._joint_names:
+            self.get_logger().error("Rejected incomplete joint trajectory")
+            return
+        self._trajectory = message
+        self._trajectory_started = time.monotonic()
+
+    def _update_trajectory(self) -> None:
+        if self._trajectory is None:
+            return
+        elapsed = time.monotonic() - self._trajectory_started
+        points = self._trajectory.points
+        times = [
+            point.time_from_start.sec + point.time_from_start.nanosec / 1e9
+            for point in points
+        ]
+        if elapsed >= times[-1]:
+            self._positions = tuple(points[-1].positions)
+            self._trajectory = None
+            return
+        upper = next(index for index, value in enumerate(times) if value >= elapsed)
+        if upper == 0:
+            self._positions = tuple(points[0].positions)
+            return
+        lower = upper - 1
+        fraction = (elapsed - times[lower]) / (times[upper] - times[lower])
+        self._positions = tuple(
+            first + fraction * (second - first)
+            for first, second in zip(
+                points[lower].positions, points[upper].positions
+            )
+        )
 
 
 def main(args: list[str] | None = None) -> None:

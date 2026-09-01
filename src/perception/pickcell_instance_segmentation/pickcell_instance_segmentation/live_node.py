@@ -11,6 +11,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import CameraInfo, Image, PointCloud2
+from std_msgs.msg import Empty
 
 from .models import CameraModel
 from .partition import connected_instance_labels
@@ -69,12 +70,16 @@ class LiveInstanceSegmentation(Node):
         self.declare_parameter("minimum_candidate_pixels", 100)
         self.declare_parameter("same_height_tolerance_m", 0.02)
         self.declare_parameter("top_depth_percentile", 10.0)
+        self.declare_parameter("cycle_complete_topic", "planning/cycle_complete")
+        self.declare_parameter("picked_exclusion_radius_m", 0.18)
         self.declare_parameter("synchronization_slop_seconds", 0.05)
         self.declare_parameter("input_is_rectified", True)
 
         self._bridge = CvBridge()
         self._camera_info = None
         self._last_started = 0.0
+        self._pending_pick = None
+        self._picked_points = []
         self._patch_publisher = self.create_publisher(
             Image, self.get_parameter("patch_overlay_topic").value, 1
         )
@@ -101,6 +106,12 @@ class LiveInstanceSegmentation(Node):
             self.get_parameter("camera_info_topic").value,
             self._on_camera_info,
             qos_profile_sensor_data,
+        )
+        self.create_subscription(
+            Empty,
+            self.get_parameter("cycle_complete_topic").value,
+            self._cycle_complete,
+            1,
         )
         rgb = Subscriber(
             self, Image, self.get_parameter("rgb_topic").value,
@@ -182,6 +193,15 @@ class LiveInstanceSegmentation(Node):
                 result.cloud,
                 top_depth_percentile=selector_config.top_depth_percentile,
             )
+            radius = float(self.get_parameter(
+                "picked_exclusion_radius_m"
+            ).value)
+            descriptions = tuple(
+                item for item in descriptions
+                if all(np.linalg.norm(
+                    np.asarray(item.pick_point_xyz) - previous
+                ) > radius for previous in self._picked_points)
+            )
             selected = UpperRightSegmentSelector(selector_config).choose(
                 descriptions
             )
@@ -205,6 +225,7 @@ class LiveInstanceSegmentation(Node):
                 color_by_instance=False,
             ))
             if selected is not None:
+                self._pending_pick = np.asarray(selected.pick_point_xyz)
                 point = PointStamped()
                 point.header = rgb_message.header
                 point.point.x, point.point.y, point.point.z = (
@@ -216,6 +237,12 @@ class LiveInstanceSegmentation(Node):
                 f"Live segmentation frame failed: {error}",
                 throttle_duration_sec=2.0,
             )
+
+    def _cycle_complete(self, _message: Empty) -> None:
+        """Exclude the completed pick location and allow the next candidate."""
+        if self._pending_pick is not None:
+            self._picked_points.append(self._pending_pick)
+            self._pending_pick = None
 
     @staticmethod
     def _selected_overlay(labels, color, selected) -> np.ndarray:

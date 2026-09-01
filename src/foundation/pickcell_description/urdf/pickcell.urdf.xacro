@@ -9,6 +9,7 @@
   <xacro:include filename="$(find kuka_quantec_support)/urdf/kr240_r2900_2_macro.xacro"/>
   <xacro:include filename="$(find pickcell_description)/urdf/bag_pallet.xacro"/>
   <xacro:include filename="$(find pickcell_description)/urdf/drop_box.xacro"/>
+  <xacro:include filename="$(find pickcell_description)/urdf/simple_gripper.xacro"/>
 
   <xacro:arg name="robot_prefix" default=""/>
   <xacro:arg name="robot_mount_xyz" default="0 0 0"/>
@@ -54,13 +55,8 @@
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <!-- The TCP is configurable because it belongs to the future end effector. -->
-  <link name="gripper_tcp"/>
-  <joint name="tool0_to_gripper_tcp" type="fixed">
-    <parent link="${prefix}tool0"/>
-    <child link="gripper_tcp"/>
-    <origin xyz="$(arg tcp_xyz)" rpy="$(arg tcp_rpy)"/>
-  </joint>
+  <xacro:simple_gripper parent="${prefix}tool0"
+    tcp_xyz="$(arg tcp_xyz)" tcp_rpy="$(arg tcp_rpy)"/>
 
   <!-- Fixed overhead depth camera. Its optical +Z axis points straight down
        at the pallet centre, matching the ROS optical-frame convention. -->

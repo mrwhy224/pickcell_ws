@@ -60,3 +60,15 @@ publishes a `nav_msgs/Path` on
 command the robot. In production, the steps marked `FIXED` should be taught,
 validated, and stored in the robot controller (or as validated joint
 trajectories); only the steps marked `PLANNED` should invoke online planning.
+
+For the launch demonstration, `TrajectoryExecutorNode` first collision-plans to
+the box-home pose. It then accepts one cycle at a time, obtains collision-free
+IK for each TCP waypoint, asks MoveIt/OMPL for the joint-space path, and sends
+the timed `JointTrajectory` to `JointStateSimulationNode`. The latter
+interpolates the planned trajectory so RViz shows continuous arm motion. Once
+the arm returns home, `planning/cycle_complete` allows perception to exclude
+the completed pick location and choose the next candidate.
+
+The simple rigid vacuum tool is visualization-grade. Cycle completion models
+grip/release logically; the imported Isaac bag links remain fixed pallet links,
+so this demo does not claim a physical vacuum or deformable-bag simulation.
