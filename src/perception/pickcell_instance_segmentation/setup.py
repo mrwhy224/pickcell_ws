@@ -22,4 +22,10 @@ setup(
     description="Dataset contracts for point-cloud instance segmentation.",
     license="Apache-2.0",
     tests_require=["pytest"],
+    entry_points={
+        "console_scripts": [
+            "live_instance_segmentation = "
+            "pickcell_instance_segmentation.live_node:main",
+        ],
+    },
 )

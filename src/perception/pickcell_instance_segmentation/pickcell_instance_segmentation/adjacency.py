@@ -260,7 +260,11 @@ def build_patch_graph(
         )
         features[:, 0] = shared
         features[:, 1] = diagonal_counts
-        features[:, 2] = shared / np.minimum(sizes_a, sizes_b)
+        # A boundary pixel may contact the same neighboring patch in more than
+        # one grid direction. Complete boundary support is saturated evidence.
+        features[:, 2] = np.minimum(
+            shared / np.minimum(sizes_a, sizes_b), 1.0
+        )
         features[:, 3] = np.linalg.norm(centroid_delta, axis=1)
         features[:, 4] = np.abs(centroid_delta[:, 2])
         features[:, 5] = np.minimum(sizes_a, sizes_b) / np.maximum(sizes_a, sizes_b)

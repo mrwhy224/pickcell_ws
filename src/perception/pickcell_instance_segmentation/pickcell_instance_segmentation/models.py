@@ -557,6 +557,18 @@ class EdgeAffinity:
 
 
 @dataclass(frozen=True)
+class RGBDProcessingResult:
+    """Complete reusable output of the RGB-D patch-affinity pipeline."""
+
+    scene: SceneInput
+    cloud: OrganizedCloud
+    geometry: OrganizedGeometry
+    patches: PatchSet
+    graph: PatchGraph
+    affinity: EdgeAffinity
+
+
+@dataclass(frozen=True)
 class AffinityMetrics:
     """Immutable binary edge-affinity evaluation statistics."""
 

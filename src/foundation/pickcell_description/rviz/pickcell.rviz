@@ -7,6 +7,10 @@ Panels:
         - /Robot - KUKA KR 180 R2900-2
         - /Pallet and bags
         - /Overhead depth point cloud
+        - /Live surface patches
+        - /Live candidate bags
+        - /Segmented candidate cloud
+        - /Selected bag cloud
         - /TARGET - red pose arrow
       Splitter Ratio: 0.55
     Tree Height: 720
@@ -114,6 +118,86 @@ Visualization Manager:
         Value: /pickcell/sensors/overhead_depth/points
       Use Fixed Frame: true
       Use rainbow: true
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Live surface patches
+      Normalize Range: true
+      Queue Size: 2
+      Topic: /pickcell/perception/patch_overlay
+      Transport Hint: raw
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 1
+        Min Value: 0
+        Value: true
+      Axis: Z
+      Channel Name: rgb
+      Class: rviz_default_plugins/PointCloud2
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: true
+      Name: Segmented candidate cloud
+      Position Transformer: XYZ
+      Queue Size: 2
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.01
+      Style: Points
+      Topic:
+        Depth: 2
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pickcell/perception/candidate_bag_cloud
+      Use Fixed Frame: true
+      Use rainbow: false
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 1
+        Min Value: 0
+        Value: true
+      Axis: Z
+      Channel Name: rgb
+      Class: rviz_default_plugins/PointCloud2
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: true
+      Name: Selected bag cloud
+      Position Transformer: XYZ
+      Queue Size: 2
+      Selectable: true
+      Size (Pixels): 5
+      Size (m): 0.012
+      Style: Points
+      Topic:
+        Depth: 2
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pickcell/perception/selected_bag_cloud
+      Use Fixed Frame: true
+      Use rainbow: false
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Live candidate bags
+      Normalize Range: true
+      Queue Size: 2
+      Topic: /pickcell/perception/candidate_bag_overlay
+      Transport Hint: raw
+      Unreliable: false
       Value: true
     - Alpha: 1
       Class: rviz_default_plugins/Pose

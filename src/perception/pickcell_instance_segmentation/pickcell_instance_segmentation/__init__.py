@@ -25,6 +25,7 @@ from .models import EdgeAffinity
 from .models import PatchAffinityConfig
 from .models import SceneInput
 from .models import SceneValidationReport
+from .models import RGBDProcessingResult
 from .models import ValidationIssue
 from .projection import compact_labels_to_organized
 from .projection import compact_valid_points
@@ -64,6 +65,13 @@ from .affinity import REJECTION_INSUFFICIENT_NORMAL_EVIDENCE
 from .affinity import REJECTION_NONE
 from .affinity import REJECTION_NORMAL_ANGLE
 from .affinity import REJECTION_RGB_DISTANCE
+from .pipeline import process_rgbd_frame
+from .pipeline import process_scene_directory
+from .partition import connected_instance_labels
+from .selection import describe_segments
+from .selection import SegmentCandidate
+from .selection import UpperRightSegmentSelector
+from .selection import UpperRightSelectorConfig
 
 __all__ = [
     "CameraModel",
@@ -98,6 +106,7 @@ __all__ = [
     "SceneEdgeExamples",
     "SceneSplitConfig",
     "SceneValidationReport",
+    "RGBDProcessingResult",
     "ValidationIssue",
     "compact_labels_to_organized",
     "aggregate_scene_examples",
@@ -117,6 +126,13 @@ __all__ = [
     "parse_isaac_camera_json",
     "rgbd_to_organized_cloud",
     "predict_patch_affinity",
+    "process_rgbd_frame",
+    "process_scene_directory",
+    "connected_instance_labels",
+    "describe_segments",
+    "SegmentCandidate",
+    "UpperRightSegmentSelector",
+    "UpperRightSelectorConfig",
     "REJECTION_BOUNDARY_DEPTH_DIFFERENCE",
     "REJECTION_BOUNDARY_POINT_DISTANCE",
     "REJECTION_CENTROID_DEPTH_DIFFERENCE",

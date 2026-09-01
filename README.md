@@ -133,3 +133,46 @@ NumPy arrays are converted and removed before the process exits automatically.
 
 [`deep-research-report.md`](deep-research-report.md) is a future architecture
 reference; it does not describe files that must exist today.
+
+## Process one RGB-D frame
+
+`process_rgbd_frame` is the reusable inference entry point for tests and live
+camera callbacks. It accepts an aligned BGR/RGB-compatible `uint8` color array,
+the aligned depth array, and camera calibration:
+
+```python
+from pickcell_instance_segmentation import CameraModel
+from pickcell_instance_segmentation import process_rgbd_frame
+
+camera = CameraModel(
+    width=depth.shape[1], height=depth.shape[0],
+    fx=fx, fy=fy, cx=cx, cy=cy,
+    depth_scale=1000.0,  # uint16 depth is in millimetres
+    distortion_model="plumb_bob",
+    distortion_coefficients=distortion_coefficients,
+    frame_id="camera_optical_frame",
+    source_schema="live_camera",
+)
+result = process_rgbd_frame(
+    color, depth, camera,
+    input_is_rectified=True,
+)
+
+xyz = result.cloud.xyz       # H x W x 3 organized point cloud, metres
+valid = result.cloud.valid   # H x W valid-depth mask
+patches = result.patches
+graph = result.graph
+affinity = result.affinity
+```
+
+Use `process_scene_directory(path, input_is_rectified=True)` to run the same
+pipeline on a captured or synthetic `scene_*` directory. The live ROS node also
+turns accepted patch affinities into candidate instances and publishes both a
+colored candidate cloud and the selected next-pick cloud.
+
+The reusable `UpperRightSegmentSelector` chooses the segment with the smallest
+overhead-camera depth (the upper/closest surface). Candidates within the
+configured height tolerance are treated as level and the image-right candidate
+wins. This selection is geometric; downstream grasp planning should still
+validate the candidate and transform its published centroid into the robot
+planning frame.

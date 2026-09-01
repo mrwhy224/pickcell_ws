@@ -68,6 +68,28 @@ system:
       point_cloud_topic: sensors/overhead_depth/points
 
 nodes:
+  live_instance_segmentation:
+    mode: live
+    package: pickcell_instance_segmentation
+    executable: live_instance_segmentation
+    parameters:
+      rgb_topic: sensors/overhead_depth/color/image_raw
+      depth_topic: sensors/overhead_depth/depth/image_raw
+      camera_info_topic: sensors/overhead_depth/camera_info
+      patch_overlay_topic: perception/patch_overlay
+      instance_overlay_topic: perception/candidate_bag_overlay
+      segmented_cloud_topic: perception/candidate_bag_cloud
+      selected_cloud_topic: perception/selected_bag_cloud
+      selected_point_topic: perception/selected_bag_point
+      maximum_processing_rate_hz: 2.0
+      minimum_candidate_pixels: 100
+      # An overhead camera sees a higher bag at a smaller optical depth.
+      # Within this depth difference, choose the image-right candidate first.
+      same_height_tolerance_m: 0.02
+      top_depth_percentile: 10.0
+      synchronization_slop_seconds: 0.05
+      input_is_rectified: true
+
   dataset_capture:
     mode: capture
     package: pickcell_dataset_tools
