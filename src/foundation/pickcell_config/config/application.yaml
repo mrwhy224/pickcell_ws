@@ -149,7 +149,7 @@ nodes:
       ]
       # One planning target: [X, Y, Z, A, B, C].
       # XYZ is in metres; KUKA-style ABC (Z-Y-X) is in degrees.
-      target_pose: [2.00, 1.0, 2.00, 50.0, 40.0, 0.0]
+      target_pose: [-1.40, 0.0, 1.05, 0.0, 180.0, 0.0]
       # TF child frame broadcast from frame_id using target_pose.
       target_frame_id: motion_planning_target
       # Retained only as a deterministic test fixture. Live simulated depth is

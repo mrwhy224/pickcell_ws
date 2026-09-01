@@ -47,12 +47,7 @@ class TrajectoryExecutorNode(Node):
         self._plan_client = self.create_client(
             GetMotionPlan, "plan_kinematic_path", callback_group=self._group
         )
-        seeds = (
-            self._current,
-            JointConfiguration.from_iterable(
-                (lo + hi) / 2.0 for lo, hi in zip(lower, upper)
-            ),
-        )
+        seeds = self._make_seeds(lower, upper, self._current)
         backend = MoveItIKBackend(
             self._ik_client, self._joint_names, seeds,
             group_name=str(self.get_parameter("group_name").value),
@@ -75,6 +70,7 @@ class TrajectoryExecutorNode(Node):
         self._queue = deque([self._home_pose()])
         self._busy_until = 0.0
         self._executing_cycle = False
+        self._home_reached = False
         self._trajectory_publisher = self.create_publisher(
             JointTrajectory, "planning/joint_trajectory", 1
         )
@@ -105,6 +101,21 @@ class TrajectoryExecutorNode(Node):
             "camera_clear_home", [-1.4, 0.0, 1.05, 0.0, 180.0, 0.0]
         )
 
+    @staticmethod
+    def _make_seeds(lower, upper, current):
+        """Cover alternate elbow/wrist branches for pallet and rear-box poses."""
+        seeds = [current, JointConfiguration.from_iterable(
+            (lo + hi) / 2.0 for lo, hi in zip(lower, upper)
+        )]
+        for index in range(len(current.positions)):
+            for fraction in (0.1, 0.9):
+                values = list(current.positions)
+                values[index] = lower[index] + fraction * (
+                    upper[index] - lower[index]
+                )
+                seeds.append(JointConfiguration.from_iterable(values))
+        return tuple(seeds)
+
     def _home_pose(self) -> PoseStamped:
         target = CartesianPoseABC.from_sequence(
             self.get_parameter("camera_clear_home").value
@@ -121,7 +132,11 @@ class TrajectoryExecutorNode(Node):
             )
 
     def _cycle_path(self, path: Path) -> None:
-        if len(self._queue) > 0 or time.monotonic() < self._busy_until:
+        if (
+            not self._home_reached
+            or len(self._queue) > 0
+            or time.monotonic() < self._busy_until
+        ):
             return
         self._queue.extend(path.poses[1:])
         self._executing_cycle = True
@@ -134,6 +149,11 @@ class TrajectoryExecutorNode(Node):
             if self._executing_cycle:
                 self._complete_publisher.publish(Empty())
                 self._executing_cycle = False
+            else:
+                self._home_reached = True
+                self.get_logger().info(
+                    "Camera-clear home reached; perception cycles enabled"
+                )
             return
         if not (
             self._ik_client.service_is_ready()
@@ -144,8 +164,15 @@ class TrajectoryExecutorNode(Node):
         candidates = self._solver.solve(target)
         goal = self._optimizer.choose(candidates, self._current)
         if goal is None:
-            self.get_logger().error("No collision-free IK for cycle waypoint")
+            position = target.pose.position
+            self.get_logger().error(
+                "No collision-free IK for waypoint at "
+                f"({position.x:.3f}, {position.y:.3f}, {position.z:.3f})"
+            )
             self._queue.clear()
+            self._executing_cycle = False
+            self._home_reached = False
+            self._queue.append(self._home_pose())
             return
         request = GetMotionPlan.Request()
         motion = request.motion_plan_request
@@ -169,6 +196,9 @@ class TrajectoryExecutorNode(Node):
         if response.error_code.val != MoveItErrorCodes.SUCCESS:
             self.get_logger().error("MoveIt failed to plan cycle waypoint")
             self._queue.clear()
+            self._executing_cycle = False
+            self._home_reached = False
+            self._queue.append(self._home_pose())
             return
         trajectory = response.trajectory.joint_trajectory
         if not trajectory.points:
@@ -176,6 +206,9 @@ class TrajectoryExecutorNode(Node):
             return
         self._trajectory_publisher.publish(trajectory)
         duration = trajectory.points[-1].time_from_start
+        self.get_logger().info(
+            f"Executing planned waypoint with {len(trajectory.points)} trajectory points"
+        )
         self._busy_until = time.monotonic() + duration.sec + (
             duration.nanosec / 1e9
         ) + 0.25

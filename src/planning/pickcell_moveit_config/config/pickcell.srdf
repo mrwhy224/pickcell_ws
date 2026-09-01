@@ -24,5 +24,6 @@
   <disable_collisions link1="flange" link2="tool0" reason="Adjacent"/>
   <disable_collisions link1="tool0" link2="gripper_tcp" reason="Adjacent"/>
   <disable_collisions link1="tool0" link2="simple_gripper_body" reason="Adjacent"/>
+  <disable_collisions link1="link_6" link2="simple_gripper_body" reason="Adjacent"/>
   <disable_collisions link1="simple_gripper_body" link2="gripper_tcp" reason="Adjacent"/>
 </robot>
