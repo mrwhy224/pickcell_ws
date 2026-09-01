@@ -46,7 +46,7 @@ class MotionCycleNode(Node):
         )
         self.declare_parameter("cycle_path_topic", "planning/pick_place_cycle")
         self.declare_parameter(
-            "camera_clear_home", [-0.55, 0.0, 1.20, 0.0, 180.0, 0.0]
+            "camera_clear_home", [-1.40, 0.0, 1.05, 0.0, 180.0, 0.0]
         )
         self.declare_parameter(
             "transfer_waypoint", [-0.90, 0.0, 1.20, 0.0, 180.0, 0.0]

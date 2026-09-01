@@ -80,6 +80,13 @@ class PickPlaceCycleConfig:
             raise ValueError("transfer_waypoint must stay behind the robot")
         if self.box_approach.z <= self.box_drop.z:
             raise ValueError("box_approach must be above box_drop")
+        if not (
+            math.isclose(self.camera_clear_home.x, self.box_approach.x)
+            and math.isclose(self.camera_clear_home.y, self.box_approach.y)
+        ):
+            raise ValueError(
+                "camera_clear_home must be directly above the box approach"
+            )
 
 
 class PickPlaceCyclePlanner:
@@ -127,7 +134,7 @@ class PickPlaceCyclePlanner:
                 self.config.transfer_waypoint, True,
             ),
             CycleStep(
-                "fixed_return_home", MotionType.FIXED,
+                "fixed_return_to_box_home", MotionType.FIXED,
                 self.config.camera_clear_home, True,
             ),
         )

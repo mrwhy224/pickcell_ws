@@ -187,3 +187,5 @@ and return are explicitly reusable fixed motions suitable for teaching and
 validation on the industrial controller. See
 `src/planning/pickcell_motion_server/README.md` for coordinates and safety
 boundaries.
+The robot's waiting/home pose is directly above the rear box, so it remains
+outside the overhead camera's pallet view until a bag has been identified.

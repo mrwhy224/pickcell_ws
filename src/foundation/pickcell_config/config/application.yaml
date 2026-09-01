@@ -76,8 +76,8 @@ nodes:
       planning_frame: cell
       selected_point_topic: perception/selected_bag_point
       cycle_path_topic: planning/pick_place_cycle
-      # Point 1: camera-clear home/start, behind the robot and below the camera.
-      camera_clear_home: [-0.55, 0.0, 1.20, 0.0, 180.0, 0.0]
+      # Point 1: wait directly above the rear box, fully outside camera view.
+      camera_clear_home: [-1.40, 0.0, 1.05, 0.0, 180.0, 0.0]
       # Point 2: fixed handoff into the permanently taught rear-box motion.
       transfer_waypoint: [-0.90, 0.0, 1.20, 0.0, 180.0, 0.0]
       box_approach: [-1.40, 0.0, 1.05, 0.0, 180.0, 0.0]

@@ -11,7 +11,7 @@ from pickcell_motion_server.cycle import PickPlaceCyclePlanner
 def config() -> PickPlaceCycleConfig:
     """Return representative taught points behind the robot."""
     return PickPlaceCycleConfig(
-        camera_clear_home=CartesianPoseABC(-0.55, 0.0, 1.20, 0, 180, 0),
+        camera_clear_home=CartesianPoseABC(-1.40, 0.0, 1.05, 0, 180, 0),
         transfer_waypoint=CartesianPoseABC(-0.90, 0.0, 1.20, 0, 180, 0),
         box_approach=CartesianPoseABC(-1.40, 0.0, 1.05, 0, 180, 0),
         box_drop=CartesianPoseABC(-1.40, 0.0, 0.72, 0, 180, 0),
@@ -47,6 +47,17 @@ def test_safe_points_must_be_on_rear_side() -> None:
         PickPlaceCycleConfig(
             camera_clear_home=CartesianPoseABC(0.5, 0, 1, 0, 180, 0),
             transfer_waypoint=CartesianPoseABC(-0.9, 0, 1, 0, 180, 0),
-            box_approach=CartesianPoseABC(-1.4, 0, 1, 0, 180, 0),
+            box_approach=CartesianPoseABC(0.5, 0, 1, 0, 180, 0),
             box_drop=CartesianPoseABC(-1.4, 0, 0.7, 0, 180, 0),
+        )
+
+
+def test_home_must_be_directly_over_the_box() -> None:
+    """Keep the stationary robot out of the overhead bag camera view."""
+    with pytest.raises(ValueError, match="directly above the box"):
+        PickPlaceCycleConfig(
+            camera_clear_home=CartesianPoseABC(-0.55, 0, 1.2, 0, 180, 0),
+            transfer_waypoint=CartesianPoseABC(-0.9, 0, 1.2, 0, 180, 0),
+            box_approach=CartesianPoseABC(-1.4, 0, 1.05, 0, 180, 0),
+            box_drop=CartesianPoseABC(-1.4, 0, 0.72, 0, 180, 0),
         )

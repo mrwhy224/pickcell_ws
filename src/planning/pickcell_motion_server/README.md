@@ -28,13 +28,16 @@ The pallet is centred at `cell x=+1.4 m`; the open receiving box is mirrored
 behind the robot at `cell x=-1.4 m`. The configured safe points are:
 
 ```text
-camera-clear home:  [-0.55, 0.00, 1.20,   0, 180, 0]
+camera-clear home:  [-1.40, 0.00, 1.05,   0, 180, 0]
 transfer waypoint:  [-0.90, 0.00, 1.20,   0, 180, 0]
 box approach:       [-1.40, 0.00, 1.05,   0, 180, 0]
 box drop:           [-1.40, 0.00, 0.72,   0, 180, 0]
 ```
 
-These values are TCP XYZABC poses in the `cell` frame. They are commissioning
+The home pose is directly above the rear box and is also the box-approach pose.
+The robot waits there while perception identifies the next bag; motion begins
+only after a selected top-surface point arrives. These values are TCP XYZABC
+poses in the `cell` frame. They are commissioning
 defaults, not certified taught points. They must be checked with the real
 gripper/TCP, payload, safety zones, and collision model before execution.
 
