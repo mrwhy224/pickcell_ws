@@ -176,3 +176,14 @@ configured height tolerance are treated as level and the image-right candidate
 wins. This selection is geometric; downstream grasp planning should still
 validate the candidate and transform its published centroid into the robot
 planning frame.
+
+## Pick/place cell cycle
+
+The receiving box is mirrored behind the robot at `x=-1.4 m`, opposite the bag
+pallet at `x=+1.4 m`. The motion-cycle coordinator consumes the selected bag
+point and publishes an ordered waypoint contract. Online planning is limited
+to reaching and leaving the changing bag target; the rear transfer, box drop,
+and return are explicitly reusable fixed motions suitable for teaching and
+validation on the industrial controller. See
+`src/planning/pickcell_motion_server/README.md` for coordinates and safety
+boundaries.

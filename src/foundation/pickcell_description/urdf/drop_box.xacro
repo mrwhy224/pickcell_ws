@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="drop_box" params="parent">
+    <!-- Open receiving box mirrored across the robot from the pallet.
+         Outside size: 0.8 x 1.2 x 0.55 m; usable top is at z=0.55 m. -->
+    <link name="drop_box">
+      <visual name="base_visual">
+        <origin xyz="0 0 0.025"/>
+        <geometry><box size="0.8 1.2 0.05"/></geometry>
+        <material name="safety_blue">
+          <color rgba="0.08 0.28 0.65 1.0"/>
+        </material>
+      </visual>
+      <collision name="base_collision">
+        <origin xyz="0 0 0.025"/>
+        <geometry><box size="0.8 1.2 0.05"/></geometry>
+      </collision>
+      <visual name="front_wall_visual">
+        <origin xyz="0.375 0 0.275"/>
+        <geometry><box size="0.05 1.2 0.55"/></geometry>
+        <material name="safety_blue"/>
+      </visual>
+      <collision name="front_wall_collision">
+        <origin xyz="0.375 0 0.275"/>
+        <geometry><box size="0.05 1.2 0.55"/></geometry>
+      </collision>
+      <visual name="rear_wall_visual">
+        <origin xyz="-0.375 0 0.275"/>
+        <geometry><box size="0.05 1.2 0.55"/></geometry>
+        <material name="safety_blue"/>
+      </visual>
+      <collision name="rear_wall_collision">
+        <origin xyz="-0.375 0 0.275"/>
+        <geometry><box size="0.05 1.2 0.55"/></geometry>
+      </collision>
+      <visual name="left_wall_visual">
+        <origin xyz="0 0.575 0.275"/>
+        <geometry><box size="0.7 0.05 0.55"/></geometry>
+        <material name="safety_blue"/>
+      </visual>
+      <collision name="left_wall_collision">
+        <origin xyz="0 0.575 0.275"/>
+        <geometry><box size="0.7 0.05 0.55"/></geometry>
+      </collision>
+      <visual name="right_wall_visual">
+        <origin xyz="0 -0.575 0.275"/>
+        <geometry><box size="0.7 0.05 0.55"/></geometry>
+        <material name="safety_blue"/>
+      </visual>
+      <collision name="right_wall_collision">
+        <origin xyz="0 -0.575 0.275"/>
+        <geometry><box size="0.7 0.05 0.55"/></geometry>
+      </collision>
+    </link>
+    <joint name="cell_to_drop_box" type="fixed">
+      <parent link="${parent}"/>
+      <child link="drop_box"/>
+      <origin xyz="-1.4 0 0" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+</robot>

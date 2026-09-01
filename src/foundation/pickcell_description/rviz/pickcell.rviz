@@ -6,11 +6,13 @@ Panels:
       Expanded:
         - /Robot - KUKA KR 180 R2900-2
         - /Pallet and bags
+        - /Rear receiving box
         - /Overhead depth point cloud
         - /Live surface patches
         - /Live candidate bags
         - /Segmented candidate cloud
         - /Selected bag cloud
+        - /Pick-place cycle waypoints
         - /TARGET - red pose arrow
       Splitter Ratio: 0.55
     Tree Height: 720
@@ -85,6 +87,32 @@ Visualization Manager:
         Inertia: false
         Mass: false
       Name: Pallet and bags
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Alpha: 1
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description File: ""
+      Description Source: Topic
+      Description Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pickcell/drop_box_description
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+      Mass Properties:
+        Inertia: false
+        Mass: false
+      Name: Rear receiving box
       TF Prefix: ""
       Update Interval: 0
       Value: true
@@ -216,6 +244,33 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /pickcell/planning/target_pose
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 255; 170; 0
+      Enabled: true
+      Head Diameter: 0.08
+      Head Length: 0.12
+      Length: 0.20
+      Line Style: Lines
+      Line Width: 0.025
+      Name: Pick-place cycle waypoints
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 255; 0
+      Pose Style: Axes
+      Radius: 0.04
+      Shaft Diameter: 0.03
+      Shaft Length: 0.10
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pickcell/planning/pick_place_cycle
       Value: true
     - Class: rviz_default_plugins/TF
       Enabled: false

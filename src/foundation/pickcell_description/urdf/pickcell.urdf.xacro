@@ -8,6 +8,7 @@
   -->
   <xacro:include filename="$(find kuka_quantec_support)/urdf/kr240_r2900_2_macro.xacro"/>
   <xacro:include filename="$(find pickcell_description)/urdf/bag_pallet.xacro"/>
+  <xacro:include filename="$(find pickcell_description)/urdf/drop_box.xacro"/>
 
   <xacro:arg name="robot_prefix" default=""/>
   <xacro:arg name="robot_mount_xyz" default="0 0 0"/>
@@ -15,6 +16,7 @@
   <xacro:arg name="tcp_xyz" default="0 0 0"/>
   <xacro:arg name="tcp_rpy" default="0 0 0"/>
   <xacro:arg name="include_pallet" default="true"/>
+  <xacro:arg name="include_drop_box" default="true"/>
   <xacro:property name="prefix" value="$(arg robot_prefix)"/>
 
   <link name="world"/>
@@ -37,6 +39,9 @@
        from the robot-only description consumed by RViz. -->
   <xacro:if value="$(arg include_pallet)">
     <xacro:bag_pallet parent="cell"/>
+  </xacro:if>
+  <xacro:if value="$(arg include_drop_box)">
+    <xacro:drop_box parent="cell"/>
   </xacro:if>
 
   <xacro:kuka_kr240_r2900_2_robot

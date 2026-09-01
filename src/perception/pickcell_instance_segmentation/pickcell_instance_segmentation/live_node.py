@@ -208,7 +208,7 @@ class LiveInstanceSegmentation(Node):
                 point = PointStamped()
                 point.header = rgb_message.header
                 point.point.x, point.point.y, point.point.z = (
-                    selected.centroid_xyz
+                    selected.pick_point_xyz
                 )
                 self._selected_point_publisher.publish(point)
         except (TypeError, ValueError, cv2.error) as error:

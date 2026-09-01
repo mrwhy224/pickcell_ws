@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="pickcell_drop_box">
+  <xacro:include filename="$(find pickcell_description)/urdf/drop_box.xacro"/>
+  <link name="cell"/>
+  <xacro:drop_box parent="cell"/>
+</robot>

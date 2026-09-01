@@ -25,6 +25,7 @@ setup(
     entry_points={
         "console_scripts": [
             "motion_solver = pickcell_motion_server.runtime_node:main",
+            "motion_cycle = pickcell_motion_server.cycle_node:main",
         ],
     },
 )

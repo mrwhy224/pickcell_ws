@@ -128,3 +128,23 @@ def test_selector_breaks_same_height_tie_to_image_right() -> None:
 def test_selector_returns_none_without_segments() -> None:
     """Represent an empty scene without inventing a pick target."""
     assert UpperRightSegmentSelector().choose(()) is None
+
+
+def test_selected_pick_point_is_on_the_top_surface() -> None:
+    """Publish a grasp reference near the surface instead of the bag centre."""
+    height, width = 8, 8
+    color = np.zeros((height, width, 3), dtype=np.uint8)
+    depth = np.full((height, width), 1100, dtype=np.uint16)
+    depth[2:6, 2:6] = 900
+    depth[3:5, 3:5] = 850
+    result = process_rgbd_frame(color, depth, camera(width, height))
+    labels = np.zeros((height, width), dtype=np.int32)
+    labels[2:6, 2:6] = 1
+
+    selected = UpperRightSegmentSelector().choose_from_labels(
+        labels, result.cloud
+    )
+
+    assert selected is not None
+    assert selected.pick_point_xyz[2] < selected.centroid_xyz[2]
+    assert selected.pick_point_xyz[2] == pytest.approx(0.85)

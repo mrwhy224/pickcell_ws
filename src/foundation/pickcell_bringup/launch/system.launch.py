@@ -58,13 +58,23 @@ def generate_launch_description() -> LaunchDescription:
         ).toxml()
         robot_visual_description = xacro.process_file(
             str(description_path),
-            mappings={**xacro_mappings, "include_pallet": "false"},
+            mappings={
+                **xacro_mappings,
+                "include_pallet": "false",
+                "include_drop_box": "false",
+            },
         ).toxml()
         pallet_description_path = (
             description_path.parent / "bag_pallet_standalone.urdf.xacro"
         )
         pallet_description = xacro.process_file(
             str(pallet_description_path)
+        ).toxml()
+        drop_box_description_path = (
+            description_path.parent / "drop_box_standalone.urdf.xacro"
+        )
+        drop_box_description = xacro.process_file(
+            str(drop_box_description_path)
         ).toxml()
         simulator_config = system.get("simulator", {})
         if simulator_config.get("enabled", False):
@@ -158,6 +168,20 @@ def generate_launch_description() -> LaunchDescription:
                 }],
                 remappings=[
                     ("robot_description", "pallet_description"),
+                ],
+                output="screen",
+            ),
+            Node(
+                package="robot_state_publisher",
+                executable="robot_state_publisher",
+                name="drop_box_state_publisher",
+                namespace=namespace,
+                parameters=[{
+                    "robot_description": drop_box_description,
+                    "use_sim_time": use_sim_time,
+                }],
+                remappings=[
+                    ("robot_description", "drop_box_description"),
                 ],
                 output="screen",
             ),

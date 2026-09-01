@@ -15,6 +15,7 @@ class SegmentCandidate:
     instance_id: int
     pixel_count: int
     centroid_xyz: tuple[float, float, float]
+    pick_point_xyz: tuple[float, float, float]
     centroid_uv: tuple[float, float]
     top_depth_m: float
     bounding_box_uv: tuple[int, int, int, int]
@@ -69,17 +70,19 @@ def describe_segments(
         minimum_v, minimum_u = pixels_vu.min(axis=0)
         maximum_v, maximum_u = pixels_vu.max(axis=0)
         centroid = np.mean(xyz, axis=0, dtype=np.float64)
+        top_depth = float(np.percentile(xyz[:, 2], top_depth_percentile))
+        top_points = xyz[xyz[:, 2] <= top_depth + 0.01]
+        pick_point = np.median(top_points, axis=0)
         candidates.append(SegmentCandidate(
             instance_id=identifier,
             pixel_count=int(xyz.shape[0]),
             centroid_xyz=tuple(float(value) for value in centroid),
+            pick_point_xyz=tuple(float(value) for value in pick_point),
             centroid_uv=(
                 float(np.mean(pixels_vu[:, 0])),
                 float(np.mean(pixels_vu[:, 1])),
             ),
-            top_depth_m=float(np.percentile(
-                xyz[:, 2], top_depth_percentile
-            )),
+            top_depth_m=top_depth,
             bounding_box_uv=(
                 int(minimum_u), int(minimum_v),
                 int(maximum_u), int(maximum_v),
