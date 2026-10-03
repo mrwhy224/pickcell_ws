@@ -9,24 +9,15 @@ import rclpy
 from rclpy.clock import Clock, ClockType
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
+from std_msgs.msg import UInt64
 from trajectory_msgs.msg import JointTrajectory
 
 
-def positions_in_order(
-    message: JointState, joint_names: tuple[str, ...],
-) -> tuple[float, ...] | None:
-    """Normalize a complete named joint state or reject an incomplete one."""
-    positions = dict(zip(message.name, message.position))
-    if not all(name in positions for name in joint_names):
-        return None
-    return tuple(float(positions[name]) for name in joint_names)
-
-
 class JointStateSimulationNode(Node):
-    """Publish initial state and apply solver selections without a controller."""
+    """Publish initial state and interpolate the sole demo trajectory topic."""
 
     def __init__(self) -> None:
-        """Configure the selected-state input and simulated-state output."""
+        """Configure the demo trajectory input and simulated-state output."""
         super().__init__("joint_state_sim")
         self.declare_parameter(
             "joint_names", [f"joint_{index}" for index in range(1, 7)]
@@ -42,12 +33,10 @@ class JointStateSimulationNode(Node):
         self._positions = initial
         self._trajectory = None
         self._trajectory_started = 0.0
+        self._active_command_id = None
         self._publisher = self.create_publisher(JointState, "joint_states", 10)
-        self._subscription = self.create_subscription(
-            JointState,
-            "planning/selected_joint_configuration",
-            self._apply,
-            10,
+        self._complete_publisher = self.create_publisher(
+            UInt64, "planning/trajectory_complete_id", 1
         )
         self._trajectory_subscription = self.create_subscription(
             JointTrajectory,
@@ -63,14 +52,6 @@ class JointStateSimulationNode(Node):
             0.1, self._publish, clock=self._wall_clock
         )
 
-    def _apply(self, message: JointState) -> None:
-        selected = positions_in_order(message, self._joint_names)
-        if selected is None:
-            self.get_logger().error("Rejected incomplete selected configuration")
-            return
-        self._positions = selected
-        self.get_logger().info("Applied selected configuration to simulation")
-
     def _publish(self) -> None:
         self._update_trajectory()
         message = JointState()
@@ -80,11 +61,16 @@ class JointStateSimulationNode(Node):
         self._publisher.publish(message)
 
     def _start_trajectory(self, message: JointTrajectory) -> None:
-        if not message.points or tuple(message.joint_names) != self._joint_names:
+        if (
+            not message.points
+            or tuple(message.joint_names) != self._joint_names
+            or not self._valid_trajectory(message)
+        ):
             self.get_logger().error("Rejected incomplete joint trajectory")
             return
         self._trajectory = message
         self._trajectory_started = time.monotonic()
+        self._active_command_id = self._command_id(message)
 
     def _update_trajectory(self) -> None:
         if self._trajectory is None:
@@ -98,6 +84,10 @@ class JointStateSimulationNode(Node):
         if elapsed >= times[-1]:
             self._positions = tuple(points[-1].positions)
             self._trajectory = None
+            self._complete_publisher.publish(UInt64(
+                data=self._active_command_id
+            ))
+            self._active_command_id = None
             return
         upper = next(index for index, value in enumerate(times) if value >= elapsed)
         if upper == 0:
@@ -111,6 +101,37 @@ class JointStateSimulationNode(Node):
                 points[lower].positions, points[upper].positions
             )
         )
+
+    def _valid_trajectory(self, message: JointTrajectory) -> bool:
+        """Reject malformed timing or an externally injected incomplete path."""
+        if self._command_id(message) is None:
+            return False
+        previous = -1.0
+        for point in message.points:
+            current = (
+                point.time_from_start.sec
+                + point.time_from_start.nanosec / 1e9
+            )
+            if (
+                len(point.positions) != len(self._joint_names)
+                or not all(math.isfinite(value) for value in point.positions)
+                or current <= previous
+            ):
+                return False
+            previous = current
+        return True
+
+    @staticmethod
+    def _command_id(message: JointTrajectory) -> int | None:
+        """Read the executor command ID carried in the trajectory header."""
+        prefix = "pickcell_trajectory/"
+        frame_id = message.header.frame_id
+        if not frame_id.startswith(prefix):
+            return None
+        suffix = frame_id[len(prefix):]
+        if not suffix.isdecimal() or int(suffix) <= 0:
+            return None
+        return int(suffix)
 
 
 def main(args: list[str] | None = None) -> None:

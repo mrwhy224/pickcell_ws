@@ -1,5 +1,6 @@
 """ROS 2 node publishing live candidate segments and the next pick target."""
 
+from dataclasses import dataclass
 import time
 
 from cv_bridge import CvBridge
@@ -7,11 +8,11 @@ import cv2
 from geometry_msgs.msg import PointStamped
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 import numpy as np
+from pickcell_interfaces.msg import ActiveBag, CycleResult
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import CameraInfo, Image, PointCloud2
-from std_msgs.msg import Empty
 
 from .models import CameraModel
 from .partition import connected_instance_labels
@@ -20,6 +21,21 @@ from .ros_cloud import segment_cloud_message
 from .selection import describe_segments
 from .selection import UpperRightSegmentSelector
 from .selection import UpperRightSelectorConfig
+
+
+@dataclass(frozen=True)
+class LockedSelectionSnapshot:
+    """Visualization products bound to one accepted perception snapshot."""
+
+    pick_point_xyz: np.ndarray
+    instance_overlay: Image
+    selected_cloud: PointCloud2
+    selected_instance_id: int
+
+
+def matches_cycle_result(cycle_id: int | None, result_id: int) -> bool:
+    """Match only a signed result produced for the current accepted cycle."""
+    return cycle_id is not None and abs(result_id) == cycle_id
 
 
 def _colorize(labels: np.ndarray, color: np.ndarray) -> np.ndarray:
@@ -70,8 +86,8 @@ class LiveInstanceSegmentation(Node):
         self.declare_parameter("minimum_candidate_pixels", 100)
         self.declare_parameter("same_height_tolerance_m", 0.02)
         self.declare_parameter("top_depth_percentile", 10.0)
-        self.declare_parameter("cycle_complete_topic", "planning/cycle_complete")
-        self.declare_parameter("cycle_failed_topic", "planning/cycle_failed")
+        self.declare_parameter("cycle_accepted_topic", "planning/active_bag")
+        self.declare_parameter("cycle_result_topic", "planning/cycle_result")
         self.declare_parameter("picked_exclusion_radius_m", 0.18)
         self.declare_parameter("synchronization_slop_seconds", 0.05)
         self.declare_parameter("input_is_rectified", True)
@@ -80,8 +96,11 @@ class LiveInstanceSegmentation(Node):
         self._camera_info = None
         self._last_started = 0.0
         self._pending_pick = None
+        self._locked_snapshot = None
         self._picked_points = []
         self._cycle_active = False
+        self._active_cycle_id = None
+        self._terminal_cycle_ids = set()
         self._patch_publisher = self.create_publisher(
             Image, self.get_parameter("patch_overlay_topic").value, 1
         )
@@ -110,15 +129,15 @@ class LiveInstanceSegmentation(Node):
             qos_profile_sensor_data,
         )
         self.create_subscription(
-            Empty,
-            self.get_parameter("cycle_complete_topic").value,
-            self._cycle_complete,
+            ActiveBag,
+            self.get_parameter("cycle_accepted_topic").value,
+            self._cycle_accepted,
             1,
         )
         self.create_subscription(
-            Empty,
-            self.get_parameter("cycle_failed_topic").value,
-            self._cycle_failed,
+            CycleResult,
+            self.get_parameter("cycle_result_topic").value,
+            self._cycle_result,
             1,
         )
         rgb = Subscriber(
@@ -218,29 +237,60 @@ class LiveInstanceSegmentation(Node):
                 _colorize(result.patches.labels + 1, color),
                 rgb_message,
             )
-            self._publish_overlay(
-                self._instance_publisher,
-                self._selected_overlay(candidates, color, selected),
-                rgb_message,
-            )
             self._segmented_cloud_publisher.publish(segment_cloud_message(
                 result.cloud, candidates, rgb_message.header,
-            ))
-            selected_id = 0 if selected is None else selected.instance_id
-            self._selected_cloud_publisher.publish(segment_cloud_message(
-                result.cloud, candidates, rgb_message.header,
-                selected_instance_id=selected_id,
-                color_by_instance=False,
             ))
             if selected is not None:
                 if not self._cycle_active:
                     self._pending_pick = np.asarray(selected.pick_point_xyz)
                     self._cycle_active = True
-                # Republish the locked target until the motion executor accepts
-                # it. This covers the startup interval while the arm is still
-                # travelling to its camera-clear home.
+                    self._locked_snapshot = LockedSelectionSnapshot(
+                        pick_point_xyz=self._pending_pick.copy(),
+                        instance_overlay=self._overlay_message(
+                            self._selected_overlay(
+                                candidates, color, selected
+                            ),
+                            rgb_message,
+                        ),
+                        selected_cloud=segment_cloud_message(
+                            result.cloud, candidates, rgb_message.header,
+                            selected_instance_id=selected.instance_id,
+                            color_by_instance=False,
+                        ),
+                        selected_instance_id=selected.instance_id,
+                    )
+                    self.get_logger().info(
+                        "Locked candidate %s from frame %s.%09d" % (
+                            selected.instance_id,
+                            rgb_message.header.stamp.sec,
+                            rgb_message.header.stamp.nanosec,
+                        )
+                    )
+            if self._cycle_active and self._locked_snapshot is not None:
+                self._instance_publisher.publish(
+                    self._locked_snapshot.instance_overlay
+                )
+                self._selected_cloud_publisher.publish(
+                    self._locked_snapshot.selected_cloud
+                )
+            else:
+                self._publish_overlay(
+                    self._instance_publisher,
+                    self._selected_overlay(candidates, color, selected),
+                    rgb_message,
+                )
+                selected_id = 0 if selected is None else selected.instance_id
+                self._selected_cloud_publisher.publish(segment_cloud_message(
+                    result.cloud, candidates, rgb_message.header,
+                    selected_instance_id=selected_id,
+                    color_by_instance=False,
+                ))
+            if self._cycle_active and self._pending_pick is not None:
+                # Republish the exact locked source identity until acceptance.
+                # Reusing the latest RGB header would pair old XYZ data with an
+                # unrelated camera timestamp.
                 point = PointStamped()
-                point.header = rgb_message.header
+                point.header = self._locked_snapshot.selected_cloud.header
                 point.point.x, point.point.y, point.point.z = (
                     self._pending_pick
                 )
@@ -251,22 +301,44 @@ class LiveInstanceSegmentation(Node):
                 throttle_duration_sec=2.0,
             )
 
-    def _cycle_complete(self, _message: Empty) -> None:
-        """Exclude the completed pick location and allow the next candidate."""
-        if self._pending_pick is not None:
-            self._picked_points.append(self._pending_pick)
-            self._pending_pick = None
-        self._cycle_active = False
-
-    def _cycle_failed(self, _message: Empty) -> None:
-        """Skip an unreachable candidate so one bag cannot stall the cell."""
-        if self._pending_pick is not None:
+    def _cycle_accepted(self, message: ActiveBag) -> None:
+        """Bind only an acceptance that names the locked source snapshot."""
+        if not self._cycle_active or self._active_cycle_id is not None:
+            return
+        if self._locked_snapshot is None:
+            return
+        header = self._locked_snapshot.selected_cloud.header
+        if (
+            message.cycle_id <= 0
+            or message.source_frame != header.frame_id
+            or message.source_stamp.sec != header.stamp.sec
+            or message.source_stamp.nanosec != header.stamp.nanosec
+        ):
             self.get_logger().warning(
-                "Skipping unreachable bag candidate and selecting the next"
+                "Ignored cycle acceptance for a different RGB-D snapshot"
             )
+            return
+        self._active_cycle_id = message.cycle_id
+
+    def _cycle_result(self, message: CycleResult) -> None:
+        """Finalize only an explicitly accepted cycle and known payload state."""
+        if message.cycle_id in self._terminal_cycle_ids:
+            return
+        if self._active_cycle_id != message.cycle_id:
+            return
+        if message.payload_held:
+            self.get_logger().error(
+                f"Cycle {self._active_cycle_id} faulted with payload held; "
+                "keeping candidate locked"
+            )
+            return
+        if (message.success or message.delivered) and self._pending_pick is not None:
             self._picked_points.append(self._pending_pick)
-            self._pending_pick = None
+        self._pending_pick = None
         self._cycle_active = False
+        self._locked_snapshot = None
+        self._terminal_cycle_ids.add(message.cycle_id)
+        self._active_cycle_id = None
 
     @staticmethod
     def _selected_overlay(labels, color, selected) -> np.ndarray:
@@ -298,9 +370,13 @@ class LiveInstanceSegmentation(Node):
     def _publish_overlay(
         self, publisher, image: np.ndarray, source: Image
     ) -> None:
+        publisher.publish(self._overlay_message(image, source))
+
+    def _overlay_message(self, image: np.ndarray, source: Image) -> Image:
+        """Create an RGB overlay message with the source frame identity."""
         message = self._bridge.cv2_to_imgmsg(image, encoding="rgb8")
         message.header = source.header
-        publisher.publish(message)
+        return message
 
 
 def main(args=None) -> None:
