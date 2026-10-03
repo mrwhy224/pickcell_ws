@@ -17,6 +17,7 @@
   <xacro:arg name="tcp_xyz" default="0 0 0"/>
   <xacro:arg name="tcp_rpy" default="0 0 0"/>
   <xacro:arg name="include_pallet" default="true"/>
+  <xacro:arg name="include_bags" default="true"/>
   <xacro:arg name="include_drop_box" default="true"/>
   <xacro:property name="prefix" value="$(arg robot_prefix)"/>
 
@@ -39,7 +40,7 @@
   <!-- Kept in the complete model for MoveIt collision checking, but omitted
        from the robot-only description consumed by RViz. -->
   <xacro:if value="$(arg include_pallet)">
-    <xacro:bag_pallet parent="cell"/>
+    <xacro:bag_pallet parent="cell" include_bags="$(arg include_bags)"/>
   </xacro:if>
   <xacro:if value="$(arg include_drop_box)">
     <xacro:drop_box parent="cell"/>

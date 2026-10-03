@@ -5,15 +5,14 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Robot - KUKA KR 180 R2900-2
-        - /Pallet and bags
+        - /Pallet stand
         - /Rear receiving box
         - /Overhead depth point cloud
         - /Live surface patches
         - /Live candidate bags
         - /Segmented candidate cloud
         - /Selected bag cloud
-        - /Pick-place cycle waypoints
-        - /TARGET - red pose arrow
+        - /Task anchors - A_PICK and B_DROP
       Splitter Ratio: 0.55
     Tree Height: 720
   - Class: rviz_common/Views
@@ -77,6 +76,18 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /pickcell/gripper/bag_markers
       Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Task anchors - A_PICK and B_DROP
+      Namespaces:
+        task_anchors: true
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pickcell/planning/task_anchors
+      Value: true
     - Alpha: 1
       Class: rviz_default_plugins/RobotModel
       Collision Enabled: false
@@ -98,7 +109,7 @@ Visualization Manager:
       Mass Properties:
         Inertia: false
         Mass: false
-      Name: Pallet and bags
+      Name: Pallet stand
       TF Prefix: ""
       Update Interval: 0
       Value: true
@@ -242,7 +253,7 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz_default_plugins/Pose
       Color: 255; 35; 35
-      Enabled: true
+      Enabled: false
       Head Length: 0.12
       Head Radius: 0.08
       Name: TARGET - red pose arrow
@@ -256,18 +267,18 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /pickcell/planning/target_pose
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
       Color: 255; 170; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.08
       Head Length: 0.12
       Length: 0.20
       Line Style: Lines
       Line Width: 0.025
-      Name: Pick-place cycle waypoints
+      Name: Active motion diagnostics (optional)
       Offset:
         X: 0
         Y: 0
@@ -282,8 +293,8 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /pickcell/planning/pick_place_cycle
-      Value: true
+        Value: /pickcell/planning/active_motion_path
+      Value: false
     - Class: rviz_default_plugins/TF
       Enabled: false
       Frame Timeout: 15

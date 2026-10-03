@@ -19,8 +19,10 @@ system:
     # Publishes the configured pose until a simulator or hardware driver exists.
     joint_state_source: simulation_topic
     joint_state_rate_hz: 10
-    # Valid bent pose for RViz testing. Joint 2 must remain between -140 and
-    # -5 degrees for this QUANTEC model, so an all-zero pose is invalid.
+    # Used only when joint_state_source is `default`; the active
+    # `simulation_topic` source instead uses parameter_groups.initial_arm_state
+    # below, so the mock and executor always receive the same vector.
+    # Joint 2 must remain between -140 and -5 degrees for this QUANTEC model.
     initial_joint_positions_deg:
       joint_1: 20.0
       joint_2: -45.0
@@ -67,21 +69,39 @@ system:
       camera_info_topic: sensors/overhead_depth/camera_info
       point_cloud_topic: sensors/overhead_depth/points
 
+# Coordinates used by more than one node live here. system.launch.py injects
+# this group into each node that names it, avoiding independent copies.
+parameter_groups:
+  initial_arm_state:
+    # Commissioned simulation start state, degrees. This is currently a valid
+    # bent pose, not a third task anchor. Startup FK suppresses the initial
+    # A_PICK join only when the executed pose already matches that anchor.
+    initial_positions_deg: [20.0, -45.0, 60.0, 11.0, 30.0, 10.0]
+
+  two_anchor_task:
+    planning_frame: cell
+    # These are the only persistent task anchors. A_PICK is above the pallet
+    # centre and B_DROP is the validated release pose above the open box.
+    # Temporary hover, contact, and lift poses are derived per accepted bag.
+    pick_anchor: [1.40, 0.0, 1.20, 0.0, 180.0, 0.0] # A_PICK
+    drop_anchor: [-1.40, 0.0, 0.72, 0.0, 180.0, 0.0] # B_DROP
+    drop_frame: drop_box
+    drop_bag_center_box: [0.0, 0.0, 0.63]
+    # The bag mesh half-widths are about 0.30 x 0.20 m inside a
+    # 0.35 x 0.55 m box opening. A 40 mm centre radius preserves clearance.
+    drop_xy_tolerance_m: 0.04
+    drop_z_tolerance_m: 0.04
+
 nodes:
   motion_cycle:
     mode: planning
     package: pickcell_motion_server
     executable: motion_cycle
+    parameter_groups: [two_anchor_task]
     parameters:
-      planning_frame: cell
       selected_point_topic: perception/selected_bag_point
-      cycle_path_topic: planning/pick_place_cycle
-      # Point 1: wait directly above the rear box, fully outside camera view.
-      camera_clear_home: [-1.40, 0.0, 1.05, 0.0, 180.0, 0.0]
-      # Point 2: fixed handoff into the permanently taught rear-box motion.
-      transfer_waypoint: [-0.90, 0.0, 1.20, 0.0, 180.0, 0.0]
-      box_approach: [-1.40, 0.0, 1.05, 0.0, 180.0, 0.0]
-      box_drop: [-1.40, 0.0, 0.72, 0.0, 180.0, 0.0]
+      cycle_contract_topic: planning/pick_place_cycle
+      diagnostic_path_topic: planning/active_motion_path
       pick_approach_offset_m: 0.20
       pick_retreat_offset_m: 0.30
 
@@ -104,8 +124,8 @@ nodes:
       # Within this depth difference, choose the image-right candidate first.
       same_height_tolerance_m: 0.02
       top_depth_percentile: 10.0
-      cycle_complete_topic: planning/cycle_complete
-      cycle_failed_topic: planning/cycle_failed
+      cycle_accepted_topic: planning/active_bag
+      cycle_result_topic: planning/cycle_result
       picked_exclusion_radius_m: 0.18
       synchronization_slop_seconds: 0.05
       input_is_rectified: true
@@ -125,9 +145,9 @@ nodes:
     mode: sim
     package: pickcell_mock_nodes
     executable: joint_state_sim
+    parameter_groups: [initial_arm_state]
     parameters:
       joint_names: [joint_1, joint_2, joint_3, joint_4, joint_5, joint_6]
-      initial_positions_deg: [20.0, -45.0, 60.0, 11.0, 30.0, 10.0]
 
   point_cloud_mock:
     mode: mock
@@ -162,20 +182,50 @@ nodes:
     mode: sim
     package: pickcell_motion_server
     executable: trajectory_executor
+    parameter_groups: [initial_arm_state, two_anchor_task]
     parameters:
       joint_names: [joint_1, joint_2, joint_3, joint_4, joint_5, joint_6]
       joint_lower_limits: [-3.2288591162, -2.4434609528, -2.0943951024, -6.1086523820, -2.1380283337, -6.1086523820]
       joint_upper_limits: [3.2288591162, -0.0872664626, 2.9321531434, 6.1086523820, 2.1380283337, 6.1086523820]
-      initial_positions_deg: [20.0, -45.0, 60.0, 11.0, 30.0, 10.0]
       optimizer_weights: [1.0, 1.0, 1.0, 0.5, 0.5, 0.25]
       group_name: manipulator
       end_effector_link: gripper_tcp
-      planning_frame: cell
       ik_timeout_seconds: 0.10
-      camera_clear_home: [-1.40, 0.0, 1.05, 0.0, 180.0, 0.0]
+      grasp_confirmation_timeout_seconds: 1.0
+      release_confirmation_timeout_seconds: 1.0
+      # Fixed Cartesian path sampling and the joint state/route acceptance
+      # envelope.  These are conservative simulation values and must be
+      # replaced by limits from the physical controller during commissioning.
+      local_cartesian_step_m: 0.01
+      route_sample_count: 81
+      route_anchor_tolerance_deg: 0.5
+      fixed_route_joint_tolerance_rad: 0.002
+      joint_state_timeout_seconds: 0.5
+      skip_initial_anchor_if_at_pose: true
+      initial_anchor_position_tolerance_m: 0.01
+      initial_anchor_orientation_tolerance_deg: 2.0
+      # joint_1 is the Z-axis base rotation in the active QUANTEC Xacro.
+      base_yaw_joint: joint_1
+      base_yaw_direction: positive
+      minimum_base_yaw_sweep_deg: 150.0
+      maximum_other_joint_excursion_deg: 75.0
+      axial_wrist_joint: joint_6
+      maximum_axial_wrist_excursion_deg: 190.0
+      maximum_transfer_tcp_height_m: 1.35
+      route_max_velocity_rad_s: [0.35, 0.35, 0.35, 0.35, 0.35, 0.35]
+      route_max_acceleration_rad_s2: [0.50, 0.50, 0.50, 0.50, 0.50, 0.50]
+      route_max_jerk_rad_s3: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
 
   bag_transfer_visualizer:
     mode: sim
     package: pickcell_motion_server
     executable: bag_transfer_visualizer
-    parameters: {}
+    parameter_groups: [two_anchor_task]
+    parameters:
+      visual_bag_half_height_m: 0.08
+      bag_mapping_tolerance_m: 0.16
+      grasp_position_tolerance_m: 0.025
+      grasp_axis_tolerance_deg: 8.0
+      contact_xy_tolerance_m: 0.10
+      contact_z_tolerance_m: 0.03
+      joint_state_timeout_seconds: 0.5

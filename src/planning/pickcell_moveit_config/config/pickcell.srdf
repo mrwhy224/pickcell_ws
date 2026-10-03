@@ -29,22 +29,4 @@
   <!-- Intentional vacuum-tool contact during pickup and release. -->
   <disable_collisions link1="simple_gripper_body" link2="drop_box" reason="PickPlaceContact"/>
   <disable_collisions link1="gripper_tcp" link2="drop_box" reason="PickPlaceContact"/>
-  <disable_collisions link1="simple_gripper_body" link2="chemical_bag_01" reason="PickPlaceContact"/>
-  <disable_collisions link1="simple_gripper_body" link2="chemical_bag_02" reason="PickPlaceContact"/>
-  <disable_collisions link1="simple_gripper_body" link2="chemical_bag_03" reason="PickPlaceContact"/>
-  <disable_collisions link1="simple_gripper_body" link2="chemical_bag_04" reason="PickPlaceContact"/>
-  <disable_collisions link1="simple_gripper_body" link2="chemical_bag_05" reason="PickPlaceContact"/>
-  <disable_collisions link1="simple_gripper_body" link2="chemical_bag_06" reason="PickPlaceContact"/>
-  <disable_collisions link1="simple_gripper_body" link2="chemical_bag_07" reason="PickPlaceContact"/>
-  <disable_collisions link1="simple_gripper_body" link2="chemical_bag_08" reason="PickPlaceContact"/>
-  <disable_collisions link1="simple_gripper_body" link2="chemical_bag_09" reason="PickPlaceContact"/>
-  <disable_collisions link1="gripper_tcp" link2="chemical_bag_01" reason="PickPlaceContact"/>
-  <disable_collisions link1="gripper_tcp" link2="chemical_bag_02" reason="PickPlaceContact"/>
-  <disable_collisions link1="gripper_tcp" link2="chemical_bag_03" reason="PickPlaceContact"/>
-  <disable_collisions link1="gripper_tcp" link2="chemical_bag_04" reason="PickPlaceContact"/>
-  <disable_collisions link1="gripper_tcp" link2="chemical_bag_05" reason="PickPlaceContact"/>
-  <disable_collisions link1="gripper_tcp" link2="chemical_bag_06" reason="PickPlaceContact"/>
-  <disable_collisions link1="gripper_tcp" link2="chemical_bag_07" reason="PickPlaceContact"/>
-  <disable_collisions link1="gripper_tcp" link2="chemical_bag_08" reason="PickPlaceContact"/>
-  <disable_collisions link1="gripper_tcp" link2="chemical_bag_09" reason="PickPlaceContact"/>
 </robot>

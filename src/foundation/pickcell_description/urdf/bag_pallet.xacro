@@ -3,7 +3,7 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find pickcell_description)/urdf/chemical_bag.xacro"/>
 
-  <xacro:macro name="bag_pallet" params="parent">
+  <xacro:macro name="bag_pallet" params="parent include_bags:=true">
     <!-- Wall-free wooden pallet: 0.8 m deep, 1.2 m wide and 0.15 m high. -->
     <link name="bag_pallet">
       <visual>
@@ -26,7 +26,9 @@
       <origin xyz="1.4 0 0.075" rpy="0 0 0"/>
     </joint>
 
-    <!-- Repeatable randomized five-layer stack. -->
+    <!-- Repeatable randomized five-layer stack. Stateful runtime bags are
+         excluded from MoveIt, where fixed links would become stale. -->
+    <xacro:if value="${include_bags}">
     <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_01"
       xyz="-0.025 -0.245 0.155" rpy="0 0 0.035"
       mass="22.4" scale_x="0.97" scale_y="1.02" scale_z="1.00"/>
@@ -54,5 +56,6 @@
     <xacro:chemical_bag parent="bag_pallet" name="chemical_bag_09"
       xyz="0.015 0.005 0.815" rpy="0 0 -0.025"
       mass="22.9" scale_x="1.00" scale_y="0.98" scale_z="1.00"/>
+    </xacro:if>
   </xacro:macro>
 </robot>

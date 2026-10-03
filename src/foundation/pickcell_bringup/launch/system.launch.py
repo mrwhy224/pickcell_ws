@@ -49,12 +49,15 @@ def generate_launch_description() -> LaunchDescription:
                 "xacro_arguments", {}
             ).items()
         }
-        # MoveIt receives the complete collision model. RViz and the primary
-        # state publisher receive a robot-only model so the pallet is a truly
-        # independent display, not a filtered copy of the same description.
-        robot_description = xacro.process_file(
+        # Isaac receives physical bags. MoveIt receives the fixed pallet and
+        # box, but not bag links whose runtime poses are owned by the cycle.
+        simulator_description = xacro.process_file(
             str(description_path),
             mappings=xacro_mappings,
+        ).toxml()
+        robot_description = xacro.process_file(
+            str(description_path),
+            mappings={**xacro_mappings, "include_bags": "false"},
         ).toxml()
         robot_visual_description = xacro.process_file(
             str(description_path),
@@ -99,7 +102,7 @@ def generate_launch_description() -> LaunchDescription:
                 / f"pickcell_isaac_description_{config_hash}.urdf"
             )
             isaac_urdf_path.write_text(
-                robot_description, encoding="utf-8"
+                simulator_description, encoding="utf-8"
             )
             internal_ros_lib = (
                 isaac_root / "exts" / "isaacsim.ros2.core"
@@ -270,7 +273,15 @@ def generate_launch_description() -> LaunchDescription:
             ),
         ])
     for node_name, node_config in config["nodes"].items():
-        parameters = dict(node_config["parameters"])
+        parameters = {}
+        for group_name in node_config.get("parameter_groups", []):
+            try:
+                parameters.update(config["parameter_groups"][group_name])
+            except KeyError as error:
+                raise RuntimeError(
+                    f"Unknown parameter group '{group_name}' for {node_name}"
+                ) from error
+        parameters.update(node_config["parameters"])
         parameters.update({
             "system_mode": node_config["mode"],
             "use_sim_time": use_sim_time,
