@@ -14,6 +14,11 @@ find_package(unique_identifier_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 
 set(message_files
+  "msg/ActiveBag.msg"
+  "msg/CycleResult.msg"
+  "msg/GripperCommand.msg"
+  "msg/GripperResult.msg"
+  "msg/PickPlaceCycle.msg"
   "msg/ErrorCode.msg"
   "msg/GraspCandidate.msg"
   "msg/GraspCandidateArray.msg"
