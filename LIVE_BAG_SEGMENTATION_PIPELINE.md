@@ -476,6 +476,13 @@ raw cloud, the instance-colored candidate cloud, and the selected bag cloud.
 The selected centroid is also published as a `PointStamped` for downstream
 planning.
 
+When no motion cycle is active, the boxed `NEXT` candidate and selected cloud
+come from the current processed RGB-D frame. When a candidate is locked for an
+active cycle, `live_node.py` stores the selected overlay and selected cloud
+from that accepted snapshot and republishes them until the matching positive
+cycle result arrives. This intentionally avoids drawing a mask from a later
+unrelated frame while the robot is still executing the earlier accepted target.
+
 ## 17. Ground truth versus live inference
 
 Offline evaluation has `instance.png` where zero is background and positive IDs

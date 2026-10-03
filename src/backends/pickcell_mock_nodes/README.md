@@ -6,9 +6,11 @@ broadcasts that pose in TF as the configured `target_frame_id`, relative to
 It has no separate configuration or launch file.
 
 `joint_state_sim` publishes the configured initial arm state and subscribes to
-`planning/selected_joint_configuration`. A received solution changes only the
-simulated `joint_states`; `robot_state_publisher` then derives the robot TF.
-The target pose and target TF are never modified by this node.
+`planning/joint_trajectory`. It interpolates only that demo trajectory topic,
+publishes `planning/trajectory_complete_id` with the command ID carried in the
+trajectory header at its final sample, and updates
+simulated `joint_states`; `robot_state_publisher` then derives robot TF. The
+target pose and target TF are never modified by this node.
 
 Its publication timer uses wall time so the configured initial pose remains
 available in RViz before an external simulator starts publishing `/clock`.

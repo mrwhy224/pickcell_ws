@@ -39,7 +39,7 @@ RViz starts automatically with the system launch. Its configured displays use:
   randomized five-layer stack
 - simulated sensor: a fixed **640 x 480 overhead RGB-D camera** at
   `(1.4, 0.0, 2.0) m`, looking straight down at the pallet
-- planning target: a **red pose arrow** showing position and orientation
+- task anchors: **A_PICK** above the pallet and **B_DROP** above the box
 
 RViz keeps the robot, pallet load, and overhead point cloud in separate display
 groups. Each can be shown or hidden without changing the other two.
@@ -70,8 +70,8 @@ XYZ is expressed in metres. ABC is expressed in degrees using KUKA's Z-Y-X
 convention: A rotates about Z, B about Y, and C about X. This is the only
 planning target; there is no separate `final_position` topic.
 
-The same file says that the point publisher runs in `mock` mode. The motion
-solver is a library boundary and is not launched as a listener node.
+The point publisher remains a deterministic mock fixture; it does not command
+the arm.
 
 ## Build and run
 
@@ -82,10 +82,10 @@ source install/setup.bash
 ros2 launch pickcell_bringup system.launch.py
 ```
 
-The publisher prints the value currently stored in that entry. The motion
-solver reads its TF, samples collision-aware IK candidates, selects the least
-weighted joint displacement, and applies that configuration to the simulated
-joint-state display. It does not plan a path or command a controller.
+The active motion-cycle executor uses collision-aware IK for bag-dependent
+legs, then follows a separately defined fixed Cartesian transfer corridor. It
+publishes a demo trajectory to the mock joint-state player; it does not command
+an Isaac articulation or a physical controller.
 After the initial symlink build, configuration edits only require restarting the
 launch; they do not require another build.
 
@@ -176,19 +176,25 @@ configured height tolerance are treated as level and the image-right candidate
 wins. This selection is geometric; downstream grasp planning should still
 validate the candidate and transform its published centroid into the robot
 planning frame.
+Once a candidate starts a motion cycle, the live node keeps the selected
+overlay and selected cloud from that accepted RGB-D snapshot. Later camera
+frames may change candidate ordering, but the active highlight, selected
+cloud, and published target point remain tied to the same locked selection
+until the matching positive cycle result releases it.
 
 ## Pick/place cell cycle
 
 The receiving box is mirrored behind the robot at `x=-1.4 m`, opposite the bag
-pallet at `x=+1.4 m`. The motion-cycle coordinator consumes the selected bag
-point and publishes an ordered waypoint contract. Online planning is limited
-to reaching and leaving the changing bag target; the rear transfer, box drop,
-and return are explicitly reusable fixed motions suitable for teaching and
-validation on the industrial controller. See
-`src/planning/pickcell_motion_server/README.md` for coordinates and safety
-boundaries.
-The robot's waiting/home pose is directly above the rear box, so it remains
-outside the overhead camera's pallet view until a bag has been identified.
-The launch demonstration now collision-plans and animates the complete arm
-cycle with a simple rigid vacuum gripper, then selects the next unprocessed
-candidate after returning above the box.
+pallet at `x=+1.4 m`. The motion-cycle coordinator consumes one locked selected
+bag and publishes an explicit named contract. The executor moves from A_PICK
+to that bag's temporary hover, executes a Cartesian contact descent, attaches
+only after geometric confirmation, lifts back to exact A_PICK, and performs a
+validated base-yaw-dominant lateral sweep to B_DROP. The empty return uses the
+same geometry in reverse. See
+`src/planning/pickcell_motion_server/README.md` and
+[`docs/motion-route-report.md`](docs/motion-route-report.md) for its direction,
+safety boundaries, and physical-system limitations.
+The launch demonstration collision-plans and animates the complete arm cycle
+with a simple rigid vacuum gripper. A cycle ID holds one selected candidate
+until its matching successful release and unloaded return; source timestamps
+remain sensor timestamps, and failed or late events cannot claim another bag.

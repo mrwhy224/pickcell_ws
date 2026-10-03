@@ -1,74 +1,49 @@
-# Motion solver
+# PickCell motion server
 
-`InverseKinematicsSolver` accepts a target TCP pose and returns every unique,
-finite configuration produced by a robot-specific inverse-kinematics backend
-that satisfies the configured joint limits.
+The package has three active executables:
 
-`JointDistanceOptimizer` currently ranks collision-free candidates by weighted
-joint displacement from the simulated starting state. The weights are kept in
-`application.yaml`, ready for additional safety or quality terms later.
+- `motion_cycle` accepts one source snapshot and publishes explicit
+  `ActiveBag` and `PickPlaceCycle` contracts.
+- `trajectory_executor` owns all arm commands and the guarded phase machine.
+- `bag_transfer_visualizer` is both the stateful bag display and geometrically
+  honest mock-gripper confirmation producer.
 
-`MoveItIKBackend` implements that boundary through MoveIt's `compute_ik`
-service. It requests collision-aware IK from several seed configurations so
-different solution branches can be discovered; the solver deduplicates and
-validates the responses. The active KDL plugin is configured in
-`pickcell_moveit_config/config/kinematics.yaml` and can later be replaced by
-TRAC-IK, IKFast, or another MoveIt kinematics plugin.
+## Motion contract
 
-At startup, `MotionSolverNode` reads the target through TF, asks MoveIt for
-candidates, publishes the selected configuration on
-`planning/selected_joint_configuration`, which is consumed by a separate
-simulation state applier. The solver does not publish TF, plan a path, modify
-the target, or command a controller.
-
-## Pallet-to-box cycle
-
-`PickPlaceCyclePlanner` defines the higher-level industrial motion contract.
-The pallet is centred at `cell x=+1.4 m`; the open receiving box is mirrored
-behind the robot at `cell x=-1.4 m`. The configured safe points are:
+The only persistent task anchors are A_PICK above the pallet and B_DROP above
+the receiving box. Their values come from the shared `two_anchor_task` group in
+`application.yaml`. A cycle executes:
 
 ```text
-camera-clear home:  [-1.40, 0.00, 1.05,   0, 180, 0]
-transfer waypoint:  [-0.90, 0.00, 1.20,   0, 180, 0]
-box approach:       [-1.40, 0.00, 1.05,   0, 180, 0]
-box drop:           [-1.40, 0.00, 0.72,   0, 180, 0]
+A_PICK -> temporary bag hover -> Cartesian contact -> grasp
+       -> temporary lift -> exact A_PICK joint branch
+       -> fixed lateral sweep -> B_DROP -> release
+       -> freshly timed reverse sweep -> A_PICK
 ```
 
-The home pose is directly above the rear box and is also the box-approach pose.
-The robot waits there while perception identifies the next bag; motion begins
-only after a selected top-surface point arrives. These values are TCP XYZABC
-poses in the `cell` frame. They are commissioning
-defaults, not certified taught points. They must be checked with the real
-gripper/TCP, payload, safety zones, and collision model before execution.
+Temporary poses are derived from the accepted surface point. They are not
+operator-managed anchors. The fixed transfer requires monotonic configured
+`joint_1` base yaw, bounded joints 2-5, bounded axial `joint_6` compensation,
+full sample collision/FK validation, and a TCP height envelope. There is no
+planner fallback for the fixed sweep.
 
-The cycle intentionally separates variable and repeatable motion:
+## Correlation and recovery
 
-```text
-fixed camera-clear home
-  -> collision-planned bag approach
-  -> linear pick and lift
-  -> collision-planned transfer waypoint
-  -> fixed transfer to box
-  -> fixed drop and retreat
-  -> fixed return through transfer waypoint to home
-```
+Cycle, trajectory, and gripper command IDs are separate. Sensor stamps remain
+sensor stamps. Every result must match its owning cycle and command. The cycle
+gate also rejects a retained source frame/stamp after terminal cleanup, closing
+the cross-topic race before perception publishes a newer snapshot.
 
-`MotionCycleNode` subscribes to the robust top-surface pick point from
-perception, transforms it into `cell`, builds this ordered contract, and
-publishes a `nav_msgs/Path` on
-`planning/pick_place_cycle` for RViz and the future execution layer. It does not
-command the robot. In production, the steps marked `FIXED` should be taught,
-validated, and stored in the robot controller (or as validated joint
-trajectories); only the steps marked `PLANNED` should invoke online planning.
+Before-grasp known-empty failures return to A_PICK and release the selection
+lock. A held or unknown payload enters safe stop. A failed A_PICK recovery also
+safe-stops rather than retrying without bound. Restarting the mock launch after
+inspection is the supported held-payload recovery; no success is fabricated.
 
-For the launch demonstration, `TrajectoryExecutorNode` first collision-plans to
-the box-home pose. It then accepts one cycle at a time, obtains collision-free
-IK for each TCP waypoint, asks MoveIt/OMPL for the joint-space path, and sends
-the timed `JointTrajectory` to `JointStateSimulationNode`. The latter
-interpolates the planned trajectory so RViz shows continuous arm motion. Once
-the arm returns home, `planning/cycle_complete` allows perception to exclude
-the completed pick location and choose the next candidate.
+## Simulation boundary
 
-The simple rigid vacuum tool is visualization-grade. Cycle completion models
-grip/release logically; the imported Isaac bag links remain fixed pallet links,
-so this demo does not claim a physical vacuum or deformable-bag simulation.
+The mock gripper checks fresh executed joints, actual TCP transform, 25 mm
+position error, 8 degree suction-axis error, contact geometry, exact selected
+bag mapping, and box-relative release geometry. It preserves the bag's
+tool-relative pose while carried. Bags are not MoveIt attached collision
+objects and are not physically attached in Isaac. See
+`docs/deep-debug-report.md` for measured execution evidence and limitations.
