@@ -61,6 +61,30 @@ def test_backend_queries_each_seed_and_returns_successes_in_joint_order():
     assert request.robot_state.joint_state.name == ["joint_1", "joint_2"]
 
 
+def test_backend_queries_preferred_seed_first():
+    """A nearby known posture is the first seed for local-branch IK."""
+    client = FakeClient([
+        response(MoveItErrorCodes.NO_IK_SOLUTION),
+        response(MoveItErrorCodes.NO_IK_SOLUTION),
+    ])
+    backend = MoveItIKBackend(
+        client,
+        ("joint_1",),
+        (JointConfiguration((0.0,)),),
+        group_name="manipulator",
+        end_effector_link="gripper_tcp",
+    )
+    backend.set_preferred_seed(JointConfiguration((0.75,)))
+    target = PoseStamped()
+    target.header.frame_id = "cell"
+    target.pose.orientation.w = 1.0
+
+    tuple(backend.sample(target))
+
+    requested = client.requests[0].ik_request.robot_state.joint_state.position
+    assert tuple(requested) == (0.75,)
+
+
 @pytest.mark.parametrize("timeout", [float("nan"), float("inf"), 0.0])
 def test_backend_rejects_invalid_timeout(timeout):
     """Reject a MoveIt request timeout unless it is finite and positive."""

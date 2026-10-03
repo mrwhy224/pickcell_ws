@@ -1,4 +1,4 @@
-"""Industrial-style pick/place cycle topology and taught safe waypoints."""
+"""Two-anchor pick/place cycle topology with bag-specific local poses."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -57,36 +57,28 @@ class CycleStep:
 
 @dataclass(frozen=True)
 class PickPlaceCycleConfig:
-    """Safe points and offsets for the pallet-to-rear-box operation."""
+    """The two persistent anchors and local-pick clearance offsets."""
 
-    camera_clear_home: CartesianPoseABC
-    transfer_waypoint: CartesianPoseABC
-    box_approach: CartesianPoseABC
-    box_drop: CartesianPoseABC
+    pick_anchor: CartesianPoseABC
+    drop_anchor: CartesianPoseABC
     pick_approach_offset_m: float = 0.20
     pick_retreat_offset_m: float = 0.30
 
     def __post_init__(self) -> None:
-        """Validate clearance offsets and rear-side waypoint placement."""
+        """Validate clearance offsets and distinct opposite-side anchors."""
         for value, name in (
             (self.pick_approach_offset_m, "pick_approach_offset_m"),
             (self.pick_retreat_offset_m, "pick_retreat_offset_m"),
         ):
             if not math.isfinite(value) or value <= 0.0:
                 raise ValueError(f"{name} must be finite and positive")
-        if self.camera_clear_home.x >= 0.0:
-            raise ValueError("camera_clear_home must stay behind the robot")
-        if self.transfer_waypoint.x >= 0.0:
-            raise ValueError("transfer_waypoint must stay behind the robot")
-        if self.box_approach.z <= self.box_drop.z:
-            raise ValueError("box_approach must be above box_drop")
-        if not (
-            math.isclose(self.camera_clear_home.x, self.box_approach.x)
-            and math.isclose(self.camera_clear_home.y, self.box_approach.y)
-        ):
-            raise ValueError(
-                "camera_clear_home must be directly above the box approach"
-            )
+        if math.dist(
+            (self.pick_anchor.x, self.pick_anchor.y, self.pick_anchor.z),
+            (self.drop_anchor.x, self.drop_anchor.y, self.drop_anchor.z),
+        ) < 0.25:
+            raise ValueError("pick and drop anchors must be distinct")
+        if self.pick_anchor.x * self.drop_anchor.x >= 0.0:
+            raise ValueError("pick and drop anchors must be on opposite robot sides")
 
 
 class PickPlaceCyclePlanner:
@@ -96,7 +88,7 @@ class PickPlaceCyclePlanner:
         self.config = config
 
     def build(self, selected_bag: CartesianPoseABC) -> tuple[CycleStep, ...]:
-        """Create the ordered cycle without prescribing intermediate paths."""
+        """Create the local pick loop and the fixed two-anchor transfer."""
         approach = selected_bag.translated(
             dz=self.config.pick_approach_offset_m
         )
@@ -105,36 +97,24 @@ class PickPlaceCyclePlanner:
         )
         return (
             CycleStep(
-                "camera_clear_home", MotionType.FIXED,
-                self.config.camera_clear_home, True,
+                "establish_pick_anchor", MotionType.FIXED,
+                self.config.pick_anchor, True,
             ),
             CycleStep("plan_to_pick_approach", MotionType.PLANNED, approach, False),
             CycleStep("descend_to_bag", MotionType.LINEAR, selected_bag, False),
             CycleStep("close_gripper", MotionType.GRIP, None, False),
             CycleStep("lift_bag", MotionType.LINEAR, retreat, False),
             CycleStep(
-                "plan_to_transfer_waypoint", MotionType.PLANNED,
-                self.config.transfer_waypoint, False,
+                "return_to_pick_anchor", MotionType.FIXED,
+                self.config.pick_anchor, True,
             ),
             CycleStep(
-                "fixed_transfer_to_box", MotionType.FIXED,
-                self.config.box_approach, True,
-            ),
-            CycleStep(
-                "fixed_descend_to_box", MotionType.FIXED,
-                self.config.box_drop, True,
+                "fixed_loaded_to_drop_anchor", MotionType.FIXED,
+                self.config.drop_anchor, True,
             ),
             CycleStep("open_gripper", MotionType.RELEASE, None, True),
             CycleStep(
-                "fixed_retreat_from_box", MotionType.FIXED,
-                self.config.box_approach, True,
-            ),
-            CycleStep(
-                "fixed_return_via_transfer", MotionType.FIXED,
-                self.config.transfer_waypoint, True,
-            ),
-            CycleStep(
-                "fixed_return_to_box_home", MotionType.FIXED,
-                self.config.camera_clear_home, True,
+                "fixed_return_to_pick_anchor", MotionType.FIXED,
+                self.config.pick_anchor, True,
             ),
         )

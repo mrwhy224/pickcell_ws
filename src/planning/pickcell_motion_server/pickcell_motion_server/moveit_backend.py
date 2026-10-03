@@ -43,6 +43,7 @@ class MoveItIKBackend:
         self._client = client
         self._joint_names = tuple(joint_names)
         self._seeds = tuple(seed_configurations)
+        self._preferred_seed = None
         self._group_name = group_name
         self._end_effector_link = end_effector_link
         self._avoid_collisions = avoid_collisions
@@ -69,7 +70,12 @@ class MoveItIKBackend:
         self, target: PoseStamped,
     ) -> Iterable[Iterable[float]]:
         """Yield successful MoveIt solutions found from configured seeds."""
-        for seed in self._seeds:
+        seeds = self._seeds
+        if self._preferred_seed is not None:
+            seeds = (self._preferred_seed,) + tuple(
+                seed for seed in seeds if seed != self._preferred_seed
+            )
+        for seed in seeds:
             response = self._client.call(self._request(target, seed))
             if response.error_code.val != MoveItErrorCodes.SUCCESS:
                 continue
@@ -82,6 +88,12 @@ class MoveItIKBackend:
             ):
                 continue
             yield tuple(positions_by_name[name] for name in self._joint_names)
+
+    def set_preferred_seed(self, seed: JointConfiguration) -> None:
+        """Try a known nearby configuration first on the next IK searches."""
+        if len(seed.positions) != len(self._joint_names):
+            raise ValueError("preferred IK seed has an unexpected joint count")
+        self._preferred_seed = seed
 
     def _request(
         self,
